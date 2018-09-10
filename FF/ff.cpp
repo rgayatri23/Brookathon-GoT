@@ -157,10 +157,11 @@ static inline void asxDtemp_Kernel(int nvband, int nfreqeval, int ncouls, int ng
                 else
                     ssxDittt_kernel(inv_igp_index, indinv, aqsmtemp, aqsntemp, vcoul, I_epsA_array, ssxDittt, ngpown, ncouls, n1, ifreq, fact1, fact2, igp, my_igp);
 
+                ssxDittt *= occ;
 #pragma omp atomic
-                asxDtemp_re[iw] += CustomComplex_real(ssxDittt * occ);
+                asxDtemp_re[iw] += CustomComplex_real(ssxDittt );
 #pragma omp atomic
-                asxDtemp_im[iw] += CustomComplex_imag(ssxDittt * occ);
+                asxDtemp_im[iw] += CustomComplex_imag(ssxDittt );
             } // iw
         }
     }

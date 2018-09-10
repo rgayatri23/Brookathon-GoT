@@ -58,6 +58,13 @@ class CustomComplex {
         return *this;
     }
 
+    CustomComplex& operator *=(const double& src) {
+        x = src * this->x;
+        y = src * this->y;
+
+        return *this;
+    }
+
     CustomComplex& operator -() {
         x = -this->x;
         y = -this->y;
