@@ -1,44 +1,31 @@
-EXE = ff.ex
-SRC = ff.cpp 
+EXE = ff_GPUComplex.ex
+SRC1 = ff_GPUComplex.cpp 
+SRC2 = ff_GPUComplex_CUDAKernel.cu
 
-#CXX = xlc++_r
-#CXX = g++
-CXX = CC
+CXX = nvcc
 
 LINK = ${CXX}
 
-ifeq ($(CXX),CC)
-##Intel compiler flag
-	CXXFLAGS= -g -O3 -qopenmp -qopt-report=5 -std=c++11
-    CXXFLAGS+=-fma #Fused multiply and add
-    #CXXFLAGS+=-xCORE-AVX2
-    CXXFLAGS+=-xMIC-AVX512
-    LINKFLAGS=-qopenmp -dynamic
+ifeq ($(CXX),nvcc)
+	CXXFLAGS= -g -O3 -std=c++11 -Wno-deprecated-gpu-targets 
+#	CXXFLAGS+= -Xptxas -v --maxrregcount=150
+ #   CXXFLAG+=-arch=sm_35
+    CXXFLAGS+=-arch=sm_70
+	LINKFLAGS=-Wno-deprecated-gpu-targets
 endif 
 
-ifeq ($(CXX),g++)
-	CXXFLAGS= -g -O3 -std=c++11 -fopenmp 
-	LINKFLAGS=-fopenmp
-endif 
+OBJ1 = $(SRC1:.cpp=.o)
+OBJ2 = $(SRC2:.cu=.o)
 
-ifeq ($(CXX),xlc++_r)
-	CXXFLAGS=-O3 -std=gnu++11 -g -qsmp
-	LINKFLAGS=-qsmp
-endif 
+$(EXE): $(OBJ1) $(OBJ2) 
+	$(CXX) $(OBJ1) $(OBJ2) -o $(EXE) $(LINKFLAGS)
 
-ifeq ($(CXX),clang++)
-	CXXFLAGS=-O3 -std=gnu++11 -fopenmp -fopenmp-targets=nvptx64-nvidia-cuda --cuda-path=${CUDA_HOME}
-	LINKFLAGS=-fopenmp -fopenmp-targets=nvptx64-nvidia-cuda --cuda-path=${CUDA_HOME}
-endif 
+$(OBJ1): $(SRC1) 
+	$(CXX) -c $(SRC1) $(CXXFLAGS)
 
-OBJ = $(SRC:.cpp=.o)
-
-$(EXE): $(OBJ)  
-	$(CXX) $(OBJ) -o $(EXE) $(LINKFLAGS)
-
-$(OBJ1): $(SRC) 
-	$(CXX) -c $(SRC) $(CXXFLAGS)
+$(OBJ2): $(SRC2) 
+	$(CXX) -c $(SRC2) $(CXXFLAGS)
 
 clean: 
-	rm -f $(OBJ) $(EXE)
+	rm -f $(OBJ1) $(OBJ2) $(EXE)
 
