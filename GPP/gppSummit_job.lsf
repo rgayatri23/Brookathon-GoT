@@ -1,0 +1,31 @@
+#!/bin/bash
+#Job script for summitdev gppKer_gpuComplex
+#BSUB -P csc190port
+#BSUB -J gppSummit_job
+#BSUB -o gpp.o%J
+#BSUB -W 01:00
+#BSUB -nnodes 1
+#BSUB -alloc_flags smt4
+
+
+input="512 2 32768 20"
+#cudaKernelName=NumBandNgpown_kernel
+cudaKernelName=NumberBands_kernel
+
+#CustomComplex job 
+exec=gpp
+
+#CUDA GPUComplex jobs
+#exec=gpp_GPUComplex
+
+numThreads=24
+export OMP_NUM_THREADS=${numThreads}
+export OMP_PROC_BIND=spread
+#export OMP_PLACES=threads
+
+
+jsrun -n1 -a1 -g1 -r1 -c${numThreads} -b packed:${numThreads} ./${exec}.ex ${input}
+
+#jsrun -n1 -a1 -g1 -r1 -c24 nvprof --kernels ${cudaKernelName} --metrics flop_count_dp --metrics dram_write_throughput --metrics dram_read_transactions --metrics dram_write_transactions ./${exec}.ex ${input}
+#jsrun -n1 -a1 -g1 -r1 -c24 nvprof --kernels ${cudaKernelName} --metrics dram_read_transactions --metrics dram_write_transactions ./${exec}.ex ${input}
+
