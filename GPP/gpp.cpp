@@ -1,8 +1,11 @@
 #include "../ComplexClass/CustomComplex.h"
+#include <openacc.h>
 
 using namespace std;
 #define nstart 0
 #define nend 3
+
+#define reductionVersion 1
 
 inline void reduce_achstemp(int n1, int number_bands, int* inv_igp_index, int ncouls, CustomComplex<double>  *aqsmtemp, CustomComplex<double> *aqsntemp, CustomComplex<double> *I_eps_array, CustomComplex<double> achstemp,  int* indinv, int ngpown, double* vcoul, int numThreads)
 {
@@ -110,7 +113,10 @@ inline void flagOCC_solver(double wxt, CustomComplex<double> *wtilde_array, int 
 void till_nvband(int number_bands, int nvband, int ngpown, int ncouls, CustomComplex<double> *asxtemp, double *wx_array, CustomComplex<double> *wtilde_array, CustomComplex<double> *aqsmtemp, CustomComplex<double> *aqsntemp, CustomComplex<double> *I_eps_array, int *inv_igp_index, int *indinv, double *vcoul)
 {
     const double occ=1.0;
-#pragma omp parallel for collapse(3)
+//#pragma omp parallel for collapse(3)
+#pragma acc parallel loop copyin(inv_igp_index[0:ngpown], indinv[0:ncouls+1], wtilde_array[0:ngpown*ncouls], wx_array[0:3], aqsmtemp[0:number_bands*ncouls], aqsntemp[0:number_bands*ncouls], I_eps_array[0:ngpown*ncouls], vcoul[0:ncouls]) \
+copyout(asxtemp[nstart:nend]) collapse(3)
+
     for(int n1 = 0; n1 < nvband; n1++)
     {
          for(int my_igp=0; my_igp<ngpown; ++my_igp)
@@ -130,9 +136,16 @@ void till_nvband(int number_bands, int nvband, int ngpown, int ncouls, CustomCom
 
 void noflagOCC_solver(int number_bands, int ngpown, int ncouls, int *inv_igp_index, int *indinv, double *wx_array, CustomComplex<double> *wtilde_array, CustomComplex<double> *aqsmtemp, CustomComplex<double> *aqsntemp, CustomComplex<double> *I_eps_array, double *vcoul, double *achtemp_re, double *achtemp_im)
 {
-#pragma omp parallel for  default(shared) firstprivate(ngpown, ncouls, number_bands) reduction(+:achtemp_re[nstart:nend], achtemp_im[nstart:nend])
+    double achtemp_re0 = 0.00, achtemp_re1 = 0.00, achtemp_re2 = 0.00, \
+        achtemp_im0 = 0.00, achtemp_im1 = 0.00, achtemp_im2 = 0.00;
+#pragma acc enter data copyin(inv_igp_index[0:ngpown], indinv[0:ncouls+1], wtilde_array[0:ngpown*ncouls], wx_array[0:3], aqsmtemp[0:number_bands*ncouls], aqsntemp[0:number_bands*ncouls], I_eps_array[0:ngpown*ncouls], vcoul[0:ncouls])
+
+#pragma acc parallel loop gang num_gangs(number_bands) num_workers(1) vector_length(32) present(inv_igp_index[0:ngpown], indinv[0:ncouls+1], wtilde_array[0:ngpown*ncouls], wx_array[0:3], aqsmtemp[0:number_bands*ncouls], aqsntemp[0:number_bands*ncouls], I_eps_array[0:ngpown*ncouls], vcoul[0:ncouls]) \
+    copyout(achtemp_re[nstart:nend], achtemp_im[nstart:nend]) \
+    reduction(+:achtemp_re0, achtemp_re1, achtemp_re2, achtemp_im0, achtemp_im1, achtemp_im2)
     for(int n1 = 0; n1<number_bands; ++n1) 
     {
+#pragma acc loop vector
         for(int my_igp=0; my_igp<ngpown; ++my_igp)
         {
             int indigp = inv_igp_index[my_igp];
@@ -147,26 +160,42 @@ void noflagOCC_solver(int number_bands, int ngpown, int ncouls, int *inv_igp_ind
             {
                 for(int iw = nstart; iw < nend; ++iw)
                 {
-                    wdiff = wx_array[iw] - wtilde_array[my_igp*ncouls+ig]; //2 flops
-
-                    //2 conj + 2 * product + 1 mult + 1 divide = 17
+                    wdiff = wx_array[iw] - wtilde_array[my_igp*ncouls+ig]; 
                     delw = wtilde_array[my_igp*ncouls+ig] * CustomComplex_conj(wdiff) * (1/CustomComplex_real((wdiff * CustomComplex_conj(wdiff)))); 
-
-                    //1 conj + 3 product + 1 mult + 1 real-mult = 22
                     CustomComplex<double> sch_array = CustomComplex_conj(aqsmtemp[n1*ncouls+igp]) * aqsntemp[n1*ncouls+ig] * delw * I_eps_array[my_igp*ncouls+ig] * 0.5*vcoul[igp];
 
-                    //2 flops
                     achtemp_re_loc[iw] += CustomComplex_real(sch_array);
                     achtemp_im_loc[iw] += CustomComplex_imag(sch_array);
                 }
             }
+#if !reductionVersion
             for(int iw = nstart; iw < nend; ++iw)
             {
+#pragma acc atomic
                 achtemp_re[iw] += achtemp_re_loc[iw];
+#pragma acc atomic
                 achtemp_im[iw] += achtemp_im_loc[iw];
             }
+#else
+            achtemp_re0 += achtemp_re_loc[0];
+            achtemp_re1 += achtemp_re_loc[1];
+            achtemp_re2 += achtemp_re_loc[2];
+            achtemp_im0 += achtemp_im_loc[0];
+            achtemp_im1 += achtemp_im_loc[1];
+            achtemp_im2 += achtemp_im_loc[2];
+#endif
         } //ngpown
     } //number_bands
+#if reductionVersion
+    achtemp_re[0] = achtemp_re0;
+    achtemp_re[1] = achtemp_re1;
+    achtemp_re[2] = achtemp_re2;
+    achtemp_im[0] = achtemp_im0;
+    achtemp_im[1] = achtemp_im1;
+    achtemp_im[2] = achtemp_im2;
+#endif
+
+#pragma acc exit data delete(inv_igp_index[0:ngpown], indinv[0:ncouls+1], wtilde_array[0:ngpown*ncouls], wx_array[0:3], aqsmtemp[0:number_bands*ncouls], aqsntemp[0:number_bands*ncouls], I_eps_array[0:ngpown*ncouls], vcoul[0:ncouls])
 }
 
 int main(int argc, char** argv)
@@ -191,16 +220,11 @@ int main(int argc, char** argv)
     const double e_lk = 10;
     const double dw = 1;
     const double to1 = 1e-6;
-    const double gamma = 0.5;
-    const double sexcut = 4.0;
-    const double limitone = 1.0/(to1*4.0);
     const double limittwo = pow(0.5,2);
     const double e_n1kq= 6.0; 
-    const double occ=1.0;
-
 
     //OpenMP Printing of threads on Host and Device
-    int tid, numThreads, numTeams;
+    int tid, numThreads;
 #pragma omp parallel shared(numThreads) private(tid)
     {
         tid = omp_get_thread_num();
