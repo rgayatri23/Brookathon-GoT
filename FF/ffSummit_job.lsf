@@ -1,0 +1,30 @@
+#!/bin/bash
+#Job script for ff on Summit
+#BSUB -P csc190port
+#BSUB -J ffSummit_job
+#BSUB -o ff.o%J
+#BSUB -W 01:00
+#BSUB -nnodes 1
+#BSUB -alloc_flags smt4
+
+
+input="15023 1998 33401 66 15 10"
+
+#CustomComplex job 
+#exec=ff
+
+#std::complex job 
+#exec=ffKerCpp_stdComplex
+
+#Fortran job 
+#exec=ffKerFort
+
+#Cuda Job
+exec=ff_GPUComplex
+
+NUM_THREADS=20
+export OMP_NUM_THREADS=${NUM_THREADS}; export OMP_PROC_BIND=spread; export OMP_PLACES=threads;
+
+jsrun -n1 -a1 -r1 -g1 -c${NUM_THREADS} -E LD_LIBRARY_PATH -E OMP_NUM_THREADS ./${exec}.ex ${input}
+
+#jsrun -n1 -a1 -g1 -r1 -c24 nvprof --kernels ${cudaKernelName} --metrics flop_count_dp --metrics dram_write_throughput --metrics dram_read_transactions --metrics dram_write_transactions ./${exec}.ex ${input}
