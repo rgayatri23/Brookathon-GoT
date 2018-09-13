@@ -130,9 +130,15 @@ void till_nvband(int number_bands, int nvband, int ngpown, int ncouls, CustomCom
 
 void noflagOCC_solver(int number_bands, int ngpown, int ncouls, int *inv_igp_index, int *indinv, double *wx_array, CustomComplex<double> *wtilde_array, CustomComplex<double> *aqsmtemp, CustomComplex<double> *aqsntemp, CustomComplex<double> *I_eps_array, double *vcoul, double *achtemp_re, double *achtemp_im)
 {
-#pragma omp parallel for  default(shared) firstprivate(ngpown, ncouls, number_bands) reduction(+:achtemp_re[nstart:nend], achtemp_im[nstart:nend])
+#pragma omp target enter data map(alloc: aqsmtemp[0:number_bands*ncouls],aqsntemp[0:number_bands*ncouls], I_eps_array[0:ngpown*ncouls], wtilde_array[0:ngpown*ncouls], vcoul[0:ncouls], inv_igp_index[0:ngpown], indinv[0:ncouls+1])
+
+#pragma omp target update to(aqsmtemp[0:number_bands*ncouls], aqsntemp[0:number_bands*ncouls], I_eps_array[0:ngpown*ncouls], vcoul[0:ncouls], inv_igp_index[0:ngpown], indinv[0:ncouls+1], wtilde_array[0:ngpown*ncouls])
+//#pragma omp parallel for  default(shared) firstprivate(ngpown, ncouls, number_bands) reduction(+:achtemp_re[nstart:nend], achtemp_im[nstart:nend])
+#pragma omp target teams distribute num_teams(number_bands) thread_limit(32) shared(vcoul, aqsntemp, aqsmtemp, I_eps_array) map(to:wx_array[nstart:nend], aqsmtemp[0:number_bands*ncouls],aqsntemp[0:number_bands*ncouls], I_eps_array[0:ngpown*ncouls], wtilde_array[0:ngpown*ncouls], vcoul[0:ncouls], inv_igp_index[0:ngpown], indinv[0:ncouls+1])\
+    map(tofrom:achtemp_re[nstart:nend], achtemp_im[nstart:nend])  
     for(int n1 = 0; n1<number_bands; ++n1) 
     {
+#pragma omp parallel for  
         for(int my_igp=0; my_igp<ngpown; ++my_igp)
         {
             int indigp = inv_igp_index[my_igp];
@@ -162,11 +168,14 @@ void noflagOCC_solver(int number_bands, int ngpown, int ncouls, int *inv_igp_ind
             }
             for(int iw = nstart; iw < nend; ++iw)
             {
+#pragma omp atomic
                 achtemp_re[iw] += achtemp_re_loc[iw];
+#pragma omp atomic
                 achtemp_im[iw] += achtemp_im_loc[iw];
             }
         } //ngpown
     } //number_bands
+#pragma omp target exit data map(delete: aqsmtemp[:0],aqsntemp[:0], I_eps_array[:0], wtilde_array[:0], vcoul[:0], inv_igp_index[:0], indinv[:0])
 }
 
 int main(int argc, char** argv)

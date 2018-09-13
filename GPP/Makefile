@@ -1,41 +1,45 @@
+#exe = gppcustomcomplex.ex
+#src = gppcustomcomplex.cpp 
 EXE = gpp.ex
 SRC = gpp.cpp 
 
 #CXX = xlc++_r
-#CXX = g++
-CXX = CC
+#CXX = CC 
+CXX = g++
+#CXX = clang++
 
 LINK = ${CXX}
 
 ifeq ($(CXX),CC)
-##Intel compiler flag
-	CXXFLAGS= -g -O3 -qopenmp -qopt-report=5 -std=c++11
-    CXXFLAGS+=-fma #Fused multiply and add
-#    CXXFLAGS+=-I /usr/common/software/likwid/4.3.0/include/ -DLIKWID_PERFMON
-#    CXXFLAGS+=-I /usr/common/software/likwid/4.3.0/include/ -DUSE_VTUNE -I${VTUNE_AMPLIFIER_XE_2018_DIR}/include -DLIKWID_PERFMON
-    CXXFLAGS+=-xCORE-AVX2
-    #CXXFLAGS+=-xMIC-AVX512
-    LINKFLAGS=-qopenmp -dynamic
-#    LINKFLAGS+=-L /usr/common/software/likwid/4.3.0/lib -llikwid
-#    LINKFLAGS+=-L ${VTUNE_AMPLIFIER_XE_2018_DIR}/lib64 -littnotify
-
-#Cray compiler flag
-#	CXXFLAGS= -hlist=a
+    CXXFLAGS=-O3 -std=c++11 -qopenmp -qopt-report=5
+    CXXFLAGS+=-qopenmp-offload=host #For offloading
+    #CXXFLAGS+=-qno-openmp-offload #For disabling offloading
+    #CXXFLAGS+=-xCORE-AVX2
+    CXXFLAGS+=-xMIC-AVX512
+    LINKFLAGS=-qopenmp #-qopenmp-offload=mic
+    #LINKFLAGS+=-dynamic #Dynamic flag gives runtime issues with OMP4.5
 endif 
 
 ifeq ($(CXX),g++)
-	CXXFLAGS= -g -O3 -std=c++11 -fopenmp 
-	LINKFLAGS=-fopenmp
+	CXXFLAGS= -g -O3 -std=c++11 -fopenmp -foffload="-lm" -foffload=nvptx-none
+	LINKFLAGS=-fopenmp -foffload="-lm" -foffload=nvptx-none
 endif 
 
 ifeq ($(CXX),xlc++_r)
-	CXXFLAGS=-O3 -std=gnu++11 -g -qsmp
-	LINKFLAGS=-qsmp
+	CXXFLAGS=-std=gnu++11 -g -O3 -qsmp=noauto:omp -qoffload #-qnoipa -qstrict #-Xptxas -v
+	LINKFLAGS=-qsmp=noauto:omp -qoffload 
 endif 
 
 ifeq ($(CXX),clang++)
 	CXXFLAGS=-O3 -std=gnu++11 -fopenmp -fopenmp-targets=nvptx64-nvidia-cuda --cuda-path=${CUDA_HOME}
 	LINKFLAGS=-fopenmp -fopenmp-targets=nvptx64-nvidia-cuda --cuda-path=${CUDA_HOME}
+endif 
+
+ifeq ($(CXX),icc)
+	CXXFLAGS=-O3 -qopenmp -qopt-report=5 -g
+	CXXFLAGS+=-xCORE_AVX2
+#	CXXFLAGS+=-xMIC_AVX512
+	LINKFLAGS=-qopenmp -dynamic
 endif 
 
 OBJ = $(SRC:.cpp=.o)
