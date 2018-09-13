@@ -8,6 +8,10 @@ Master branch uses CustomComplex class to represent a complex number. This is te
 CUDA branch uses GPUComplex, a modified version of CustomClass which inherits from the double2 vector type provided by CUDA framework.
 
 
+Problem sizes:
+GPP : ./gpp.ex 512 2 32768 20
+FF :  ./ff.ex 15023 1998 33401 66 15 10 
+
 Runtime numbers : 
 -----------|-------|-------|
 T[seconds] | FF    | GPP   |
@@ -18,5 +22,7 @@ KNL        | 18.5  | 3.2   |
 -----------|-------|-------|
 Powe9      | 50.5  | 27.5  |
 -----------|-------|-------|
-Volta      | 5.4   | 0.8   |
+Volta(acc) | 6.5   | 1.4   |
+-----------|-------|-------|
+Volta(cuda)| 2.1   | 0.8   |
 -----------|-------|-------|
