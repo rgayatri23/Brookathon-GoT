@@ -20,8 +20,8 @@ using namespace std;
 class GPUComplex : public double2{
 
     private : 
-//    re x;
-//    im y;
+//    double x;
+//    double y;
 
     public:
     explicit GPUComplex () {
