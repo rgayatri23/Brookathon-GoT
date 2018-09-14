@@ -61,8 +61,8 @@ static inline void compute_fact(double wx, int nFreq, double *dFreqGrid, double 
                     ifreq = ijk;
             }
             if(ifreq == -1) ifreq = nFreq-2;
-            fact1 = -0.5 * (dFreqGrid[ifreq+1] - wx) / (dFreqGrid[ifreq+1] - dFreqGrid[ifreq]); 
-            fact2 = -0.5 * (wx - dFreqGrid[ifreq]) / (dFreqGrid[ifreq+1] - dFreqGrid[ifreq]); 
+            fact1 = -0.5 * (dFreqGrid[ifreq+1] - wx) / (dFreqGrid[ifreq+1] - dFreqGrid[ifreq]);
+            fact2 = -0.5 * (wx - dFreqGrid[ifreq]) / (dFreqGrid[ifreq+1] - dFreqGrid[ifreq]);
     }
     else if(loop == 2 && flag_occ)
     {
@@ -73,8 +73,8 @@ static inline void compute_fact(double wx, int nFreq, double *dFreqGrid, double 
                 ifreq = ijk;
         }
         if(ifreq == 0) ifreq = nFreq-2;
-        fact1 = (dFreqGrid[ifreq+1] - wx) / (dFreqGrid[ifreq+1] - dFreqGrid[ifreq]); 
-        fact2 = (wx - dFreqGrid[ifreq]) / (dFreqGrid[ifreq+1] - dFreqGrid[ifreq]); 
+        fact1 = (dFreqGrid[ifreq+1] - wx) / (dFreqGrid[ifreq+1] - dFreqGrid[ifreq]);
+        fact2 = (wx - dFreqGrid[ifreq]) / (dFreqGrid[ifreq+1] - dFreqGrid[ifreq]);
 
     }
 }
@@ -97,6 +97,7 @@ void achsDtemp_Kernel(int number_bands, int ngpown, int ncouls, int nFreq, int *
 {
     double achsDtemp_re = 0.00, achsDtemp_im = 0.00;
 #pragma acc parallel loop gang copyin(inv_igp_index[0:ngpown], indinv[0:ncouls], aqsmtemp[0:number_bands*ncouls], aqsntemp[0:number_bands*ncouls], I_epsR_array[0:nFreq*ngpown*ncouls]) \
+    num_gangs(number_bands) num_workers(1) vector_length(16) \
     reduction(+:achsDtemp_re, achsDtemp_im)
     for(int n1 = 0; n1 < number_bands; ++n1)
     {
@@ -130,7 +131,7 @@ static inline void asxDtemp_Kernel(int number_bands, int nvband, int nfreqeval, 
     }
 
 #pragma acc parallel loop gang copyin(inv_igp_index[0:ngpown], indinv[0:ncouls], aqsmtemp[0:number_bands*ncouls], aqsntemp[0:number_bands*ncouls], I_epsR_array[0:nFreq*ngpown*ncouls], I_epsA_array[0:nFreq*ngpown*ncouls]) \
-    num_gangs(nvband) num_workers(1) vector_length(16)
+    num_gangs(nvband) num_workers(1) vector_length(8)
     for(int n1 = 0; n1 < nvband; ++n1)
     {
 #pragma acc loop vector
@@ -357,7 +358,7 @@ int main(int argc, char** argv)
         start_asxDtemp_Kernel, end_asxDtemp_Kernel, \
         start_achDtemp_cor_Kernel, end_achDtemp_cor_Kernel, \
         start_preKernel, end_preKernel;
-        
+
     gettimeofday(&start_preKernel, NULL);
 
     cout << "\n number_bands = " << number_bands << \
@@ -408,10 +409,10 @@ int main(int argc, char** argv)
     CustomComplex<double> *schDt_matrix = new CustomComplex<double>[number_bands * nFreq];
     mem_alloc += (nFreq * number_bands * sizeof(CustomComplex<double>));
 
-    //Variables used : 
+    //Variables used :
     CustomComplex<double> achsDtemp(0.00, 0.00);
 
-    //OpenACC specific separation of data structures 
+    //OpenACC specific separation of data structures
     double *achDtemp_cor_re = new double[nfreqeval];
     double *achDtemp_cor_im = new double[nfreqeval];
 
@@ -493,7 +494,7 @@ int main(int argc, char** argv)
     gettimeofday(&startTimer_Kernel, NULL);
     cout << "starting Kernels" << endl;
 
-//#pragma acc enter data copyin(inv_igp_index[0:ngpown], indinv[0:ncouls], aqsmtemp[0:number_bands*ncouls], aqsntemp[0:number_bands*ncouls], I_epsR_array[0:nFreq*ngpown*ncouls], I_epsA_array[0:nFreq*ngpown*ncouls]) 
+//#pragma acc enter data copyin(inv_igp_index[0:ngpown], indinv[0:ncouls], aqsmtemp[0:number_bands*ncouls], aqsntemp[0:number_bands*ncouls], I_epsR_array[0:nFreq*ngpown*ncouls], I_epsA_array[0:nFreq*ngpown*ncouls])
 
     /***********achsDtemp Kernel ****************/
     gettimeofday(&start_achsDtemp_Kernel, NULL);
@@ -522,7 +523,7 @@ int main(int argc, char** argv)
     gettimeofday(&endTimer_Kernel, NULL);
     double elapsedTimer_Kernel = elapsedTime(startTimer_Kernel, endTimer_Kernel);
 
-//#pragma acc exit data delete(inv_igp_index[0:ngpown], indinv[0:ncouls], aqsmtemp[0:number_bands*ncouls], aqsntemp[0:number_bands*ncouls], I_epsR_array[0:nFreq*ngpown*ncouls], I_epsA_array[0:nFreq*ngpown*ncouls]) 
+//#pragma acc exit data delete(inv_igp_index[0:ngpown], indinv[0:ncouls], aqsmtemp[0:number_bands*ncouls], aqsntemp[0:number_bands*ncouls], I_epsR_array[0:nFreq*ngpown*ncouls], I_epsA_array[0:nFreq*ngpown*ncouls])
 
     cout << "achsDtemp = " ;
     achsDtemp.print();
@@ -536,7 +537,7 @@ int main(int argc, char** argv)
     cout << "********** achDtemp_cor Time Taken **********= " << elapsed_achDtemp_cor << " secs" << endl;
     cout << "********** Kernel Time Taken **********= " << elapsedTimer_Kernel << " secs" << endl;
 
-//Free the allocated memory 
+//Free the allocated memory
    delete(aqsntemp);
    delete(aqsmtemp);
    delete(I_epsA_array);
