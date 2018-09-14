@@ -275,8 +275,8 @@ __global__ void achsDtemp_solver(int number_bands, int ngpown, int ncouls, int *
             schsDtemp = schsDtemp - aqsntemp[n1*ncouls + ig] * GPUComplex_conj(aqsmtemp[n1*ncouls + igp]) * I_epsR_array[1*ngpown*ncouls + my_igp*ncouls + ig]* vcoul[ig] * 0.5;
         }
 
-        atomicAdd(achsDtemp_re, GPUComplex_real(schsDtemp));
-        atomicAdd(achsDtemp_im, GPUComplex_imag(schsDtemp));
+        atomicAdd2(achsDtemp_re, GPUComplex_real(schsDtemp));
+        atomicAdd2(achsDtemp_im, GPUComplex_imag(schsDtemp));
     }
 }
 
@@ -301,8 +301,8 @@ __global__ void asxDtemp_solver_2D(int nvband, int nfreqeval, int ncouls, int ng
 
         if(threadIdx.x == 0)
         {
-            atomicAdd(&asxDtemp_re[iw], GPUComplex_real(ssxDittt * occ));
-            atomicAdd(&asxDtemp_im[iw], GPUComplex_imag(ssxDittt * occ));
+            atomicAdd2(&asxDtemp_re[iw], GPUComplex_real(ssxDittt * occ));
+            atomicAdd2(&asxDtemp_im[iw], GPUComplex_imag(ssxDittt * occ));
         }
     }
 }
@@ -334,8 +334,8 @@ __global__ void asxDtemp_solver_1D(int nvband, int nfreqeval, int ncouls, int ng
                     d_ssxDittt_kernel(inv_igp_index, indinv, aqsmtemp, aqsntemp, vcoul, I_epsR_array, ssxDittt, ngpown, ncouls, n1, ifreq, fact1, fact2, numThreadsPerBlock);
                 else
                     d_ssxDittt_kernel(inv_igp_index, indinv, aqsmtemp, aqsntemp, vcoul, I_epsA_array, ssxDittt, ngpown, ncouls, n1, ifreq, fact1, fact2, numThreadsPerBlock);
-                atomicAdd(&asxDtemp_re[iw], GPUComplex_real(ssxDittt * occ));
-                atomicAdd(&asxDtemp_im[iw], GPUComplex_imag(ssxDittt * occ));
+                atomicAdd2(&asxDtemp_re[iw], GPUComplex_real(ssxDittt * occ));
+                atomicAdd2(&asxDtemp_im[iw], GPUComplex_imag(ssxDittt * occ));
             }
         }
         if(leftOvernfreqeval)
@@ -354,8 +354,8 @@ __global__ void asxDtemp_solver_1D(int nvband, int nfreqeval, int ncouls, int ng
                     d_ssxDittt_kernel(inv_igp_index, indinv, aqsmtemp, aqsntemp, vcoul, I_epsR_array, ssxDittt, ngpown, ncouls, n1, ifreq, fact1, fact2, numThreadsPerBlock);
                 else
                     d_ssxDittt_kernel(inv_igp_index, indinv, aqsmtemp, aqsntemp, vcoul, I_epsA_array, ssxDittt, ngpown, ncouls, n1, ifreq, fact1, fact2, numThreadsPerBlock);
-                atomicAdd(&asxDtemp_re[iw], GPUComplex_real(ssxDittt * occ));
-                atomicAdd(&asxDtemp_im[iw], GPUComplex_imag(ssxDittt * occ));
+                atomicAdd2(&asxDtemp_re[iw], GPUComplex_real(ssxDittt * occ));
+                atomicAdd2(&asxDtemp_im[iw], GPUComplex_imag(ssxDittt * occ));
             }
         }
     }
