@@ -20,6 +20,8 @@ FF :  ./ff.ex 15023 1998 33401 66 15 10
         asxDtemp = ( 1101130767.000000, -1089006204.000000)
         achDtemp_cor = ( 0.000000, -1095068485.500000)
 
+Job Scripts in GPP and FF dir's with ${implementation}JobScript.slurm file-name for google cloud.
+
 Runtime numbers : 
 -----------|-------|-------|
 T[seconds] | FF    | GPP   |
