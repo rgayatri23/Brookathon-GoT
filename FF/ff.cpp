@@ -101,10 +101,11 @@ void achsDtemp_Kernel(int number_bands, int ngpown, int ncouls, int nFreq, int *
 #pragma acc enter data copyin(inv_igp_index[0:ngpown], indinv[0:ncouls], aqsmtemp[0:number_bands*ncouls], aqsntemp[0:number_bands*ncouls], I_epsR_array[0:nFreq*ngpown*ncouls], I_epsA_array[0:nFreq*ngpown*ncouls])
 
     gettimeofday(&startTimer, NULL);
-#pragma acc parallel loop gang collapse(2) present(inv_igp_index[0:ngpown], indinv[0:ncouls], aqsmtemp[0:number_bands*ncouls], aqsntemp[0:number_bands*ncouls], I_epsR_array[0:nFreq*ngpown*ncouls])\
+#pragma acc parallel loop gang present(inv_igp_index[0:ngpown], indinv[0:ncouls], aqsmtemp[0:number_bands*ncouls], aqsntemp[0:number_bands*ncouls], I_epsR_array[0:nFreq*ngpown*ncouls])\
     reduction(+:achsDtemp_re, achsDtemp_im)
     for(int n1 = 0; n1 < number_bands; ++n1)
     {
+#pragma acc loop vector
         for(int my_igp = 0; my_igp < ngpown; ++my_igp)
         {
             int indigp = inv_igp_index[my_igp];
@@ -113,7 +114,7 @@ void achsDtemp_Kernel(int number_bands, int ngpown, int ncouls, int nFreq, int *
 //            CustomComplex<double> schsDtemp(0.00, 0.00);
             double schsDtemp_re = 0.00, schsDtemp_im = 0.00;
 
-#pragma acc loop vector \
+//#pragma acc loop vector \
             reduction(-:schsDtemp_re, schsDtemp_im)
             for(int ig = 0; ig < ncouls; ++ig)
             {

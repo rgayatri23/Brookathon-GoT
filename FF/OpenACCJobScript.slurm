@@ -9,6 +9,6 @@
 exec=ff
 input="15023 1998 33401 66 15 10"
 pwd; hostname; date
-#./${exec}.ex ${input}
-pgprof -o ff-pgprof.nvvp ./${exec}.ex ${input}
+./${exec}.ex ${input}
+#pgprof -o ff-pgprof.nvvp ./${exec}.ex ${input}
 date
