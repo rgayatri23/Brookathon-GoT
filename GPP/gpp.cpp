@@ -5,7 +5,7 @@ using namespace std;
 #define nstart 0
 #define nend 3
 
-#define reductionVersion 0
+#define reductionVersion 1
 
 inline void reduce_achstemp(int n1, int number_bands, int* inv_igp_index, int ncouls, CustomComplex<double>  *aqsmtemp, CustomComplex<double> *aqsntemp, CustomComplex<double> *I_eps_array, CustomComplex<double> achstemp,  int* indinv, int ngpown, double* vcoul, int numThreads)
 {
@@ -140,35 +140,37 @@ void noflagOCC_solver(int number_bands, int ngpown, int ncouls, int *inv_igp_ind
         achtemp_im0 = 0.00, achtemp_im1 = 0.00, achtemp_im2 = 0.00;
 #pragma acc enter data copyin(inv_igp_index[0:ngpown], indinv[0:ncouls+1], wtilde_array[0:ngpown*ncouls], wx_array[0:3], aqsmtemp[0:number_bands*ncouls], aqsntemp[0:number_bands*ncouls], I_eps_array[0:ngpown*ncouls], vcoul[0:ncouls])
 
-#pragma acc parallel loop gang num_gangs(number_bands) num_workers(1) vector_length(32) present(inv_igp_index[0:ngpown], indinv[0:ncouls+1], wtilde_array[0:ngpown*ncouls], wx_array[0:3], aqsmtemp[0:number_bands*ncouls], aqsntemp[0:number_bands*ncouls], I_eps_array[0:ngpown*ncouls], vcoul[0:ncouls]) \
+#pragma acc parallel loop gang collapse(2) num_gangs(number_bands) num_workers(1) vector_length(32) present(inv_igp_index[0:ngpown], indinv[0:ncouls+1], wtilde_array[0:ngpown*ncouls], wx_array[0:3], aqsmtemp[0:number_bands*ncouls], aqsntemp[0:number_bands*ncouls], I_eps_array[0:ngpown*ncouls], vcoul[0:ncouls]) \
     copyout(achtemp_re[nstart:nend], achtemp_im[nstart:nend]) \
     reduction(+:achtemp_re0, achtemp_re1, achtemp_re2, achtemp_im0, achtemp_im1, achtemp_im2)
     for(int n1 = 0; n1<number_bands; ++n1)
     {
-#pragma acc loop vector
         for(int my_igp=0; my_igp<ngpown; ++my_igp)
         {
             int indigp = inv_igp_index[my_igp];
             int igp = indinv[indigp];
 
-//            CustomComplex<double> wdiff(0.00, 0.00), delw(0.00, 0.00);
-
             double achtemp_re_loc[nend-nstart], achtemp_im_loc[nend-nstart];
-//#pragma acc loop seq
+#pragma acc loop seq
             for(int iw = nstart; iw < nend; ++iw) {achtemp_re_loc[iw] = 0.00; achtemp_im_loc[iw] = 0.00;}
 
 //#pragma acc loop seq
+#pragma acc loop vector
             for(int ig = 0; ig<ncouls; ++ig)
             {
-//#pragma acc loop seq
+#pragma acc loop seq
                 for(int iw = nstart; iw < nend; ++iw)
                 {
                     CustomComplex<double> wdiff = wx_array[iw] - wtilde_array[my_igp*ncouls+ig];
                     CustomComplex<double> delw = wtilde_array[my_igp*ncouls+ig] * CustomComplex_conj(wdiff) * (1/CustomComplex_real((wdiff * CustomComplex_conj(wdiff))));
                     CustomComplex<double> sch_array = CustomComplex_conj(aqsmtemp[n1*ncouls+igp]) * aqsntemp[n1*ncouls+ig] * delw * I_eps_array[my_igp*ncouls+ig] * 0.5*vcoul[igp];
+                    double sch_array_re = CustomComplex_real(sch_array);
+                    double sch_array_im = CustomComplex_imag(sch_array);
 
-                    achtemp_re_loc[iw] += CustomComplex_real(sch_array);
-                    achtemp_im_loc[iw] += CustomComplex_imag(sch_array);
+#pragma acc atomic update
+                    achtemp_re_loc[iw] += sch_array_re;
+#pragma acc atomic update
+                    achtemp_im_loc[iw] += sch_array_im;
                 }
             }
 #if !reductionVersion
