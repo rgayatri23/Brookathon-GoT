@@ -60,8 +60,8 @@ inline void compute_fact(double wx, int nFreq, double *dFreqGrid, double &fact1,
                     ifreq = ijk;
             }
             if(ifreq == -1) ifreq = nFreq-2;
-            fact1 = -0.5 * (dFreqGrid[ifreq+1] - wx) / (dFreqGrid[ifreq+1] - dFreqGrid[ifreq]); 
-            fact2 = -0.5 * (wx - dFreqGrid[ifreq]) / (dFreqGrid[ifreq+1] - dFreqGrid[ifreq]); 
+            fact1 = -0.5 * (dFreqGrid[ifreq+1] - wx) / (dFreqGrid[ifreq+1] - dFreqGrid[ifreq]);
+            fact2 = -0.5 * (wx - dFreqGrid[ifreq]) / (dFreqGrid[ifreq+1] - dFreqGrid[ifreq]);
     }
     else if(loop == 2 && flag_occ)
     {
@@ -72,8 +72,8 @@ inline void compute_fact(double wx, int nFreq, double *dFreqGrid, double &fact1,
                 ifreq = ijk;
         }
         if(ifreq == 0) ifreq = nFreq-2;
-        fact1 = (dFreqGrid[ifreq+1] - wx) / (dFreqGrid[ifreq+1] - dFreqGrid[ifreq]); 
-        fact2 = (wx - dFreqGrid[ifreq]) / (dFreqGrid[ifreq+1] - dFreqGrid[ifreq]); 
+        fact1 = (dFreqGrid[ifreq+1] - wx) / (dFreqGrid[ifreq+1] - dFreqGrid[ifreq]);
+        fact2 = (wx - dFreqGrid[ifreq]) / (dFreqGrid[ifreq+1] - dFreqGrid[ifreq]);
 
     }
 }
@@ -322,15 +322,15 @@ int main(int argc, char** argv)
     timeval startTimer_Kernel, endTimer_Kernel, \
         start_achsDtemp_Kernel, end_achsDtemp_Kernel, \
         start_asxDtemp_Kernel, end_asxDtemp_Kernel, \
-        start_achDtemp_Kernel, end_achDtemp_Kernel, 
+        start_achDtemp_Kernel, end_achDtemp_Kernel,
         start_achDtemp_cor_Kernel, end_achDtemp_cor_Kernel, \
         start_preKernel, end_preKernel;
 
     gettimeofday(&start_preKernel, NULL);
-        
+
 #if CUDA_VER
     cout << "Cuda Version" << endl;
-#else 
+#else
     cout << "Seq Version" << endl;
 #endif
 
@@ -386,7 +386,7 @@ int main(int argc, char** argv)
     mem_alloc += (nFreq * number_bands * sizeof(GPUComplex));
 
 
-    //Variables used for Cuda: 
+    //Variables used for Cuda:
     double *asxDtemp_re = new double[nfreqeval];
     double *asxDtemp_im = new double[nfreqeval];
     double *achDtemp_cor_re = new double[nfreqeval];
@@ -427,7 +427,7 @@ int main(int argc, char** argv)
     CudaSafeCall(cudaMallocManaged((void**) &d_asxDtemp_im, nfreqeval*sizeof(double)));
 
 #endif
-    
+
     const double freqevalmin = 0.00;
     const double freqevalstep = 0.50;
     double dw = -10;
@@ -533,8 +533,10 @@ int main(int argc, char** argv)
 #if !CUDA_VER
     GPUComplex achsDtemp(0.00, 0.00);
     achsDtemp_Kernel(number_bands, ngpown, ncouls, inv_igp_index, indinv, aqsntemp, aqsmtemp, I_epsR_array, vcoul, achsDtemp);
-#else 
+#else
     d_achsDtemp_Kernel(number_bands, ngpown, ncouls, d_inv_igp_index, d_indinv, d_aqsntemp, d_aqsmtemp, d_I_epsR_array, d_vcoul, d_achsDtemp_re, d_achsDtemp_im);
+    cudaDeviceSynchronize();
+    CudaSafeCall(cudaMemcpy(achsDtemp_re, d_achsDtemp_re, sizeof(double), cudaMemcpyDeviceToHost));
 #endif
     gettimeofday(&end_achsDtemp_Kernel, NULL);
 
@@ -556,14 +558,14 @@ int main(int argc, char** argv)
     gettimeofday(&start_achDtemp_cor_Kernel, NULL);
 #if !CUDA_VER
     achDtemp_cor_Kernel(number_bands, nvband, nfreqeval, ncouls, ngpown, nFreq, freqevalmin, freqevalstep, ekq, dFreqGrid, inv_igp_index, indinv, aqsmtemp, aqsntemp, vcoul, I_epsR_array, I_epsA_array, schDi_cor, schDi_corb, sch2Di, ach2Dtemp, achDtemp_cor, achDtemp_corb);
-#else 
+#else
     d_achDtemp_cor_Kernel(number_bands, nvband, nfreqeval, ncouls, ngpown, nFreq, freqevalmin, freqevalstep, d_ekq, d_dFreqGrid, d_inv_igp_index, d_indinv, d_aqsmtemp, d_aqsntemp, d_vcoul, d_I_epsR_array, d_I_epsA_array, d_ach2Dtemp, d_achDtemp_cor_re, d_achDtemp_cor_im, d_achDtemp_corb);
 #endif
     gettimeofday(&end_achDtemp_cor_Kernel, NULL);
 
 #if CUDA_VER
     cudaDeviceSynchronize();
-    CudaSafeCall(cudaMemcpy(achsDtemp_re, d_achsDtemp_re, sizeof(double), cudaMemcpyDeviceToHost));
+//    CudaSafeCall(cudaMemcpy(achsDtemp_re, d_achsDtemp_re, sizeof(double), cudaMemcpyDeviceToHost));
     CudaSafeCall(cudaMemcpy(achsDtemp_im, d_achsDtemp_im, sizeof(double), cudaMemcpyDeviceToHost));
     GPUComplex achsDtemp(*achsDtemp_re, *achsDtemp_im);
 
@@ -581,7 +583,7 @@ int main(int argc, char** argv)
 #endif
 
     gettimeofday(&endTimer_Kernel, NULL);
-//    double elapsed_achsDtemp = elapsedTime(start_achsDtemp_Kernel, end_achsDtemp_Kernel);
+    double elapsed_achsDtemp = elapsedTime(start_achsDtemp_Kernel, end_achsDtemp_Kernel);
 //    double elapsed_asxDtemp = elapsedTime(start_asxDtemp_Kernel, end_asxDtemp_Kernel);
 //    double elapsed_achDtemp_cor = elapsedTime(start_achDtemp_cor_Kernel, end_achDtemp_cor_Kernel);
     double elapsedTimer_Kernel = elapsedTime(startTimer_Kernel, endTimer_Kernel);
@@ -593,7 +595,7 @@ int main(int argc, char** argv)
     cout << "achDtemp_cor = " ;
     achDtemp_cor[0].print();
 
-//    cout << "********** achsDtemp Time Taken **********= " << elapsed_achsDtemp << " secs" << endl;
+    cout << "********** achsDtemp Time Taken **********= " << elapsed_achsDtemp << " secs" << endl;
 //    cout << "********** asxDtemp Time Taken **********= " << elapsed_asxDtemp << " secs" << endl;
 //    cout << "********** achDtemp_cor Time Taken **********= " << elapsed_achDtemp_cor << " secs" << endl;
     cout << "********** Kernel Time Taken **********= " << elapsedTimer_Kernel << " secs" << endl;
@@ -616,7 +618,7 @@ int main(int argc, char** argv)
     cudaFree(d_achDtemp_cor_im);
 #endif
 
-//Free the allocated memory 
+//Free the allocated memory
     free(aqsntemp);
     free(aqsmtemp);
     free(I_epsA_array);

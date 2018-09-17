@@ -3,6 +3,7 @@
 #SBATCH --cpus-per-task=1
 #SBATCH --time=00:20:00
 #SBATCH --job-name=ff-cuda-job
+#SBATCH --exclusive=user
 
 #Job Script for ff-CUDA on google cloud
 exec=ff_GPUComplex
