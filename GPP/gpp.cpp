@@ -137,16 +137,17 @@ copyout(asxtemp[nstart:nend]) collapse(3)
 
 void noflagOCC_solver(int number_bands, int ngpown, int ncouls, int *inv_igp_index, int *indinv, double *wx_array, GPUComplex *wtilde_array, GPUComplex *aqsmtemp, GPUComplex *aqsntemp, GPUComplex *I_eps_array, double *vcoul, double *achtemp_re, double *achtemp_im)
 {
+    timeval startTimerKernel, endTimerKernel;
     double achtemp_re0 = 0.00, achtemp_re1 = 0.00, achtemp_re2 = 0.00, \
         achtemp_im0 = 0.00, achtemp_im1 = 0.00, achtemp_im2 = 0.00;
 #pragma acc enter data copyin(inv_igp_index[0:ngpown], indinv[0:ncouls+1], wtilde_array[0:ngpown*ncouls], wx_array[0:3], aqsmtemp[0:number_bands*ncouls], aqsntemp[0:number_bands*ncouls], I_eps_array[0:ngpown*ncouls], vcoul[0:ncouls])
 
+    gettimeofday(&startTimerKernel, NULL);
 #pragma acc parallel loop gang collapse(2) present(inv_igp_index[0:ngpown], indinv[0:ncouls+1], wtilde_array[0:ngpown*ncouls], wx_array[0:3], aqsmtemp[0:number_bands*ncouls], aqsntemp[0:number_bands*ncouls], I_eps_array[0:ngpown*ncouls], vcoul[0:ncouls]) \
     copyout(achtemp_re[nstart:nend], achtemp_im[nstart:nend]) \
     reduction(+:achtemp_re0, achtemp_re1, achtemp_re2, achtemp_im0, achtemp_im1, achtemp_im2)
     for(int n1 = 0; n1<number_bands; ++n1)
     {
-//#pragma acc loop seq
         for(int my_igp=0; my_igp<ngpown; ++my_igp)
         {
             double achtemp_loc_re0 = 0.00, achtemp_loc_re1 = 0.00, achtemp_loc_re2 = 0.00, \
@@ -208,8 +209,12 @@ void noflagOCC_solver(int number_bands, int ngpown, int ncouls, int *inv_igp_ind
     achtemp_im[1] = achtemp_im1;
     achtemp_im[2] = achtemp_im2;
 #endif
+    gettimeofday(&endTimerKernel, NULL);
+    double elapsedTimerKernel = (endTimerKernel.tv_sec - startTimerKernel.tv_sec) +1e-6*(endTimerKernel.tv_usec - startTimerKernel.tv_usec);
 
 #pragma acc exit data delete(inv_igp_index[0:ngpown], indinv[0:ncouls+1], wtilde_array[0:ngpown*ncouls], wx_array[0:3], aqsmtemp[0:number_bands*ncouls], aqsntemp[0:number_bands*ncouls], I_eps_array[0:ngpown*ncouls], vcoul[0:ncouls])
+
+    cout << "********** Kernel Time Taken **********= " << elapsedTimerKernel << " secs" << endl;
 }
 
 int main(int argc, char** argv)
@@ -358,8 +363,8 @@ int main(int argc, char** argv)
     gettimeofday(&endTimer, NULL);
     double elapsedTimer = (endTimer.tv_sec - startTimer.tv_sec) +1e-6*(endTimer.tv_usec - startTimer.tv_usec);
 
-    printf(" \n Final achstemp\n");
-    achstemp.print();
+//    printf(" \n Final achstemp\n");
+//    achstemp.print();
 
     printf("\n Final achtemp\n");
 
@@ -371,7 +376,7 @@ int main(int argc, char** argv)
     }
         achtemp[0].print();
 
-    cout << "********** Kernel Time Taken **********= " << elapsedTimer << " secs" << endl;
+    cout << "********** Time Taken **********= " << elapsedTimer << " secs" << endl;
 
     free(acht_n1_loc);
     free(achtemp);
