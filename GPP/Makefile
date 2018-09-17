@@ -7,7 +7,7 @@ LINK = ${CXX}
 
 ifeq ($(CXX),pgc++)
 	CXXFLAGS=-O3 -std=c++11 --gnu_extensions -g -Munroll
-	CXXFLAGS+=-acc -ta=nvidia
+	CXXFLAGS+=-acc -ta=tesla:cc70
 	CXXFLAGS+=-Minfo=accel
 	LINKFLAGS=-acc
 	LINKFLAGS+=-ta=tesla:cc70
