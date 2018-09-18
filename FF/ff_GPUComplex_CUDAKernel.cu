@@ -21,27 +21,16 @@ __device__ double atomicAdd2( double *address, double val )
 
 __device__ void d_compute_fact(double wx, int nFreq, double *dFreqGrid, double &fact1, double &fact2, int &ifreq, int loop, bool flag_occ)
 {
-    if(loop == 1 && wx > 0.00)
-    {
-            for(int ijk = 0; ijk < nFreq-1; ++ijk)
-            {
-                if(wx > dFreqGrid[ijk] && wx < dFreqGrid[ijk+1])
-                ifreq = ijk;
-            }
-            if(ifreq == 0) ifreq = nFreq-2;
-            fact1 = (dFreqGrid[ifreq+1] - wx) / (dFreqGrid[ifreq+1] - dFreqGrid[ifreq]);
-            fact2 = (wx - dFreqGrid[ifreq]) / (dFreqGrid[ifreq+1] - dFreqGrid[ifreq]);
-    }
-    else if(loop == 1)
-    {
+    if(loop == 1){
+        double awx = abs(wx);
         for(int ijk = 0; ijk < nFreq-1; ++ijk)
         {
-            if(-wx > dFreqGrid[ijk] && -wx < dFreqGrid[ijk+1])
-                ifreq = ijk;
+            if(awx > dFreqGrid[ijk] && awx < dFreqGrid[ijk+1])
+            ifreq = ijk;
         }
         if(ifreq == 0) ifreq = nFreq-2;
-        fact1 = (dFreqGrid[ifreq+1] + wx) / (dFreqGrid[ifreq+1] - dFreqGrid[ifreq]);
-        fact2 = (-dFreqGrid[ifreq] - wx) / (dFreqGrid[ifreq+1] - dFreqGrid[ifreq]);
+        fact1 = (dFreqGrid[ifreq+1] - awx) / (dFreqGrid[ifreq+1] - dFreqGrid[ifreq]);
+        fact2 = (awx - dFreqGrid[ifreq]) / (dFreqGrid[ifreq+1] - dFreqGrid[ifreq]);
     }
     if(loop == 2 && wx > 0.00)
     {

@@ -6,6 +6,8 @@
 #SBATCH --exclusive=user
 
 #Job Script for ff-CUDA on google cloud
+nvprof1="nvprof -o ff_time.nvprof"
+nvprof2="nvprof --analysis-metrics -o ff_metrics.nvprof"
 exec=ff_GPUComplex
 input="15023 1998 33401 66 15 10"
 pwd; hostname; date
