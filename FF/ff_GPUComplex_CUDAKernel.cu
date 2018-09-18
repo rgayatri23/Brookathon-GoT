@@ -69,22 +69,22 @@ __device__ void d_compute_fact(double wx, int nFreq, double *dFreqGrid, double &
     }
 }
 
-__device__ void d_ssxDittt_kernel(int *inv_igp_index, int *indinv, GPUComplex *aqsmtemp, GPUComplex *aqsntemp, double *vcoul, GPUComplex *I_eps_array, GPUComplex &ssxDittt, int ngpown, int ncouls, int n1,int ifreq, double fact1, double fact2, int numThreadsPerBlock)
+__device__ void d_ssxDittt_kernel(int *inv_igp_index, int *indinv, GPUComplex *aqsmtemp, GPUComplex *aqsntemp, double *vcoul, GPUComplex *I_eps_array, GPUComplex &ssxDittt, int ngpown, int ncouls, int n1,int ifreq, double fact1, double fact2)
 {
     __shared__ double ssxDittt_re, ssxDittt_im;
     ssxDittt_re = 0.00; ssxDittt_im = 0.00;
 
     int loopOverngpown = 1, leftOverngpown = 0;
-    if(numThreadsPerBlock < ngpown)
+    if(blockDim.x < ngpown)
     {
-        loopOverngpown = ngpown / numThreadsPerBlock;
-        leftOverngpown = ngpown % numThreadsPerBlock;
+        loopOverngpown = ngpown / blockDim.x;
+        leftOverngpown = ngpown % blockDim.x;
     }
 
     double ssxDittt_re_loc = 0.00, ssxDittt_im_loc = 0.00;
-    for( int x = 0; x < loopOverngpown && threadIdx.x < numThreadsPerBlock ; ++x)
+    for( int x = 0; x < loopOverngpown && threadIdx.x < blockDim.x ; ++x)
     {
-        const int my_igp = x*numThreadsPerBlock + threadIdx.x;
+        const int my_igp = x*blockDim.x + threadIdx.x;
         if (my_igp < ngpown)
         {
             int indigp = inv_igp_index[my_igp];
@@ -105,7 +105,7 @@ __device__ void d_ssxDittt_kernel(int *inv_igp_index, int *indinv, GPUComplex *a
     }
     if(leftOverngpown)
     {
-        const int my_igp = loopOverngpown*numThreadsPerBlock + threadIdx.x;
+        const int my_igp = loopOverngpown*blockDim.x + threadIdx.x;
         if (my_igp < ngpown)
         {
             int indigp = inv_igp_index[my_igp];
@@ -129,21 +129,21 @@ __device__ void d_ssxDittt_kernel(int *inv_igp_index, int *indinv, GPUComplex *a
     ssxDittt = GPUComplex (ssxDittt_re, ssxDittt_im);
 }
 
-__device__ void d_schDttt_corKernel1(GPUComplex &schDttt_cor, int *inv_igp_index, int *indinv, GPUComplex *I_epsR_array, GPUComplex *I_epsA_array, GPUComplex *aqsmtemp, GPUComplex *aqsntemp, double *vcoul, int ncouls, int ifreq, int ngpown, int n1, double fact1, double fact2, int numThreadsPerBlock)
+__device__ void d_schDttt_corKernel1(GPUComplex &schDttt_cor, int *inv_igp_index, int *indinv, GPUComplex *I_epsR_array, GPUComplex *I_epsA_array, GPUComplex *aqsmtemp, GPUComplex *aqsntemp, double *vcoul, int ncouls, int ifreq, int ngpown, int n1, double fact1, double fact2)
 {
     double schDttt_cor_re = 0.00, schDttt_cor_im = 0.00, \
         schDttt_re = 0.00, schDttt_im = 0.00;
 
     int loopOverngpown = 1, leftOverngpown = 0;
-    if(numThreadsPerBlock < ngpown)
+    if(blockDim.x < ngpown)
     {
-        loopOverngpown = ngpown / numThreadsPerBlock;
-        leftOverngpown = ngpown % numThreadsPerBlock;
+        loopOverngpown = ngpown / blockDim.x;
+        leftOverngpown = ngpown % blockDim.x;
     }
 
-    for( int x = 0; x < loopOverngpown && threadIdx.x < numThreadsPerBlock ; ++x)
+    for( int x = 0; x < loopOverngpown && threadIdx.x < blockDim.x ; ++x)
     {
-        int my_igp = x*numThreadsPerBlock + threadIdx.x;
+        int my_igp = x*blockDim.x + threadIdx.x;
         if (my_igp < ngpown)
         {
             double schDttt_cor_re_loc = 0.00, schDttt_cor_im_loc = 0.00;
@@ -167,7 +167,7 @@ __device__ void d_schDttt_corKernel1(GPUComplex &schDttt_cor, int *inv_igp_index
     }
     if(leftOverngpown)
     {
-        int my_igp = loopOverngpown*numThreadsPerBlock + threadIdx.x;
+        int my_igp = loopOverngpown*blockDim.x + threadIdx.x;
         if (my_igp < ngpown)
         {
             double schDttt_cor_re_loc = 0.00, schDttt_cor_im_loc = 0.00;
@@ -194,21 +194,21 @@ __device__ void d_schDttt_corKernel1(GPUComplex &schDttt_cor, int *inv_igp_index
 }
 
 
-__device__ void d_schDttt_corKernel2(GPUComplex &schDttt_cor, int *inv_igp_index, int *indinv, GPUComplex *I_epsR_array, GPUComplex *I_epsA_array, GPUComplex *aqsmtemp, GPUComplex *aqsntemp, double *vcoul, int ncouls, int ifreq, int ngpown, int n1, double fact1, double fact2, int numThreadsPerBlock, int iw)
+__device__ void d_schDttt_corKernel2(GPUComplex &schDttt_cor, int *inv_igp_index, int *indinv, GPUComplex *I_epsR_array, GPUComplex *I_epsA_array, GPUComplex *aqsmtemp, GPUComplex *aqsntemp, double *vcoul, int ncouls, int ifreq, int ngpown, int n1, double fact1, double fact2, int iw)
 {
     __shared__ double schDttt_cor_re , schDttt_cor_im ;
     schDttt_cor_re = 0.00; schDttt_cor_im = 0.00;
     int loopOverngpown = 1, leftOverngpown = 0;
-    if(ngpown > numThreadsPerBlock)
+    if(ngpown > blockDim.x)
     {
-        loopOverngpown = ngpown / numThreadsPerBlock;
-        leftOverngpown = ngpown % numThreadsPerBlock;
+        loopOverngpown = ngpown / blockDim.x;
+        leftOverngpown = ngpown % blockDim.x;
     }
 
     double schDttt_cor_re_loc = 0.00, schDttt_cor_im_loc = 0.00;
-    for(int x = 0; x < loopOverngpown && threadIdx.x < numThreadsPerBlock; ++x)
+    for(int x = 0; x < loopOverngpown && threadIdx.x < blockDim.x; ++x)
     {
-        const int my_igp = x*numThreadsPerBlock + threadIdx.x;
+        const int my_igp = x*blockDim.x + threadIdx.x;
         if(my_igp < ngpown)
         {
             int indigp = inv_igp_index[my_igp] ;
@@ -226,7 +226,7 @@ __device__ void d_schDttt_corKernel2(GPUComplex &schDttt_cor, int *inv_igp_index
     }
     if(leftOverngpown)
     {
-        const int my_igp = loopOverngpown*numThreadsPerBlock + threadIdx.x;
+        const int my_igp = loopOverngpown*blockDim.x + threadIdx.x;
         if(my_igp < ngpown)
         {
             int indigp = inv_igp_index[my_igp] ;
@@ -247,17 +247,17 @@ __device__ void d_schDttt_corKernel2(GPUComplex &schDttt_cor, int *inv_igp_index
     schDttt_cor = GPUComplex (schDttt_cor_re, schDttt_cor_im);
 }
 
-__global__ void achsDtemp_solver_2D(int number_bands, int ngpown, int ncouls, int *inv_igp_index, int *indinv, GPUComplex *aqsntemp, GPUComplex *aqsmtemp, GPUComplex *I_epsR_array, double *vcoul, double *achsDtemp_re, double *achsDtemp_im, int numThreadsPerBlock)
+__global__ void achsDtemp_solver_2D(int number_bands, int ngpown, int ncouls, int *inv_igp_index, int *indinv, GPUComplex *aqsntemp, GPUComplex *aqsmtemp, GPUComplex *I_epsR_array, double *vcoul, double *achsDtemp_re, double *achsDtemp_im)
 {
     const int n1 = blockIdx.y;
     const int my_igp = blockIdx.x;
     int loopOverncouls=1, leftOverncouls=0;
     GPUComplex schsDtemp(0.00, 0.00);
 
-    if(ncouls > numThreadsPerBlock)
+    if(ncouls > blockDim.x)
     {
-        loopOverncouls = ncouls / numThreadsPerBlock;
-        leftOverncouls = ncouls % numThreadsPerBlock;
+        loopOverncouls = ncouls / blockDim.x;
+        leftOverncouls = ncouls % blockDim.x;
     }
 
 //    if( n1 < number_bands && my_igp < ngpown)
@@ -265,15 +265,15 @@ __global__ void achsDtemp_solver_2D(int number_bands, int ngpown, int ncouls, in
         int indigp = inv_igp_index[my_igp];
         int igp = indinv[indigp];
 
-        for( int x = 0; x < loopOverncouls && threadIdx.x < numThreadsPerBlock ; ++x)
+        for( int x = 0; x < loopOverncouls && threadIdx.x < blockDim.x ; ++x)
         {
-            const int ig = x*numThreadsPerBlock + threadIdx.x;
+            const int ig = x*blockDim.x + threadIdx.x;
             if(ig < ncouls)
                 schsDtemp = schsDtemp - aqsntemp[n1*ncouls + ig] * GPUComplex_conj(aqsmtemp[n1*ncouls + igp]) * I_epsR_array[1*ngpown*ncouls + my_igp*ncouls + ig]* vcoul[ig] * 0.5;
         }
         if(leftOverncouls)
         {
-            int ig = loopOverncouls*numThreadsPerBlock + threadIdx.x;
+            int ig = loopOverncouls*blockDim.x + threadIdx.x;
             if(ig < ncouls)
                 schsDtemp = schsDtemp - aqsntemp[n1*ncouls + ig] * GPUComplex_conj(aqsmtemp[n1*ncouls + igp]) * I_epsR_array[1*ngpown*ncouls + my_igp*ncouls + ig]* vcoul[ig] * 0.5;
         }
@@ -282,7 +282,7 @@ __global__ void achsDtemp_solver_2D(int number_bands, int ngpown, int ncouls, in
     atomicAdd2(achsDtemp_im, GPUComplex_imag(schsDtemp));
 }
 
-__global__ void achsDtemp_solver_1D(int number_bands, int ngpown, int ncouls, int *inv_igp_index, int *indinv, GPUComplex *aqsntemp, GPUComplex *aqsmtemp, GPUComplex *I_epsR_array, double *vcoul, double *achsDtemp_re, double *achsDtemp_im, int numThreadsPerBlock)
+__global__ void achsDtemp_solver_1D(int number_bands, int ngpown, int ncouls, int *inv_igp_index, int *indinv, GPUComplex *aqsntemp, GPUComplex *aqsmtemp, GPUComplex *I_epsR_array, double *vcoul, double *achsDtemp_re, double *achsDtemp_im)
 {
     const int n1 = blockIdx.x;
     GPUComplex schsDtemp(0.00, 0.00);
@@ -291,14 +291,14 @@ __global__ void achsDtemp_solver_1D(int number_bands, int ngpown, int ncouls, in
     {
         int loopOverngpown = 1, leftOverngpown = 0;
 
-        if(ngpown > numThreadsPerBlock)
+        if(ngpown > blockDim.x)
         {
-            loopOverngpown = ngpown / numThreadsPerBlock;
-            leftOverngpown = ngpown % numThreadsPerBlock;
+            loopOverngpown = ngpown / blockDim.x;
+            leftOverngpown = ngpown % blockDim.x;
         }
-        for( int x = 0; x < loopOverngpown && threadIdx.x < numThreadsPerBlock ; ++x)
+        for( int x = 0; x < loopOverngpown && threadIdx.x < blockDim.x ; ++x)
         {
-            const int my_igp = x*numThreadsPerBlock + threadIdx.x;
+            const int my_igp = x*blockDim.x + threadIdx.x;
             if(my_igp < ngpown)
             {
                 int indigp = inv_igp_index[my_igp];
@@ -309,7 +309,7 @@ __global__ void achsDtemp_solver_1D(int number_bands, int ngpown, int ncouls, in
         }
         if(leftOverngpown)
         {
-            const int my_igp = loopOverngpown*numThreadsPerBlock + threadIdx.x;
+            const int my_igp = loopOverngpown*blockDim.x + threadIdx.x;
             if(my_igp < ngpown)
             {
                 int indigp = inv_igp_index[my_igp];
@@ -325,7 +325,7 @@ __global__ void achsDtemp_solver_1D(int number_bands, int ngpown, int ncouls, in
     atomicAdd2(achsDtemp_im, GPUComplex_imag(schsDtemp));
 }
 
-__global__ void asxDtemp_solver_2D(int nvband, int nfreqeval, int ncouls, int ngpown, int nFreq, double freqevalmin, double freqevalstep, double occ, double *ekq, double *dFreqGrid, int *inv_igp_index, int *indinv, GPUComplex *aqsmtemp, GPUComplex *aqsntemp, double *vcoul, GPUComplex *I_epsR_array, GPUComplex *I_epsA_array, double *asxDtemp_re, double *asxDtemp_im, int numThreadsPerBlock)
+__global__ void asxDtemp_solver_2D(int nvband, int nfreqeval, int ncouls, int ngpown, int nFreq, double freqevalmin, double freqevalstep, double occ, double *ekq, double *dFreqGrid, int *inv_igp_index, int *indinv, GPUComplex *aqsmtemp, GPUComplex *aqsntemp, double *vcoul, GPUComplex *I_epsR_array, GPUComplex *I_epsA_array, double *asxDtemp_re, double *asxDtemp_im)
 {
     GPUComplex ssxDittt(0.00, 0.00);
     const int n1 = blockIdx.y;
@@ -340,9 +340,9 @@ __global__ void asxDtemp_solver_2D(int nvband, int nfreqeval, int ncouls, int ng
         d_compute_fact(wx, nFreq, dFreqGrid, fact1, fact2, ifreq, 1, 0);
 
         if(wx > 0)
-            d_ssxDittt_kernel(inv_igp_index, indinv, aqsmtemp, aqsntemp, vcoul, I_epsR_array, ssxDittt, ngpown, ncouls, n1, ifreq, fact1, fact2, numThreadsPerBlock);
+            d_ssxDittt_kernel(inv_igp_index, indinv, aqsmtemp, aqsntemp, vcoul, I_epsR_array, ssxDittt, ngpown, ncouls, n1, ifreq, fact1, fact2);
         else
-            d_ssxDittt_kernel(inv_igp_index, indinv, aqsmtemp, aqsntemp, vcoul, I_epsA_array, ssxDittt, ngpown, ncouls, n1, ifreq, fact1, fact2, numThreadsPerBlock);
+            d_ssxDittt_kernel(inv_igp_index, indinv, aqsmtemp, aqsntemp, vcoul, I_epsA_array, ssxDittt, ngpown, ncouls, n1, ifreq, fact1, fact2);
 
         if(threadIdx.x == 0)
         {
@@ -352,20 +352,20 @@ __global__ void asxDtemp_solver_2D(int nvband, int nfreqeval, int ncouls, int ng
     }
 }
 
-__global__ void asxDtemp_solver_1D(int nvband, int nfreqeval, int ncouls, int ngpown, int nFreq, double freqevalmin, double freqevalstep, double occ, double *ekq, double *dFreqGrid, int *inv_igp_index, int *indinv, GPUComplex *aqsmtemp, GPUComplex *aqsntemp, double *vcoul, GPUComplex *I_epsR_array, GPUComplex *I_epsA_array, double *asxDtemp_re, double *asxDtemp_im, int numThreadsPerBlock)
+__global__ void asxDtemp_solver_1D(int nvband, int nfreqeval, int ncouls, int ngpown, int nFreq, double freqevalmin, double freqevalstep, double occ, double *ekq, double *dFreqGrid, int *inv_igp_index, int *indinv, GPUComplex *aqsmtemp, GPUComplex *aqsntemp, double *vcoul, GPUComplex *I_epsR_array, GPUComplex *I_epsA_array, double *asxDtemp_re, double *asxDtemp_im)
 {
     const int n1 = blockIdx.x;
 //    if(n1 < nvband)
     {
         int loopOvernfreqeval = 1, leftOvernfreqeval = 0;
-        if(nfreqeval > numThreadsPerBlock)
+        if(nfreqeval > blockDim.x)
         {
-            loopOvernfreqeval = nfreqeval / numThreadsPerBlock;
-            leftOvernfreqeval = nfreqeval % numThreadsPerBlock;
+            loopOvernfreqeval = nfreqeval / blockDim.x;
+            leftOvernfreqeval = nfreqeval % blockDim.x;
         }
-        for(int x = 0; x < loopOvernfreqeval && threadIdx.x < numThreadsPerBlock; ++x)
+        for(int x = 0; x < loopOvernfreqeval && threadIdx.x < blockDim.x; ++x)
         {
-            const int iw = x*numThreadsPerBlock + threadIdx.x;
+            const int iw = x*blockDim.x + threadIdx.x;
             if(iw < nfreqeval)
             {
                 double wx = freqevalmin - ekq[n1] + freqevalstep;
@@ -376,16 +376,16 @@ __global__ void asxDtemp_solver_1D(int nvband, int nfreqeval, int ncouls, int ng
                 d_compute_fact(wx, nFreq, dFreqGrid, fact1, fact2, ifreq, 1, 0);
 
                 if(wx > 0)
-                    d_ssxDittt_kernel(inv_igp_index, indinv, aqsmtemp, aqsntemp, vcoul, I_epsR_array, ssxDittt, ngpown, ncouls, n1, ifreq, fact1, fact2, numThreadsPerBlock);
+                    d_ssxDittt_kernel(inv_igp_index, indinv, aqsmtemp, aqsntemp, vcoul, I_epsR_array, ssxDittt, ngpown, ncouls, n1, ifreq, fact1, fact2);
                 else
-                    d_ssxDittt_kernel(inv_igp_index, indinv, aqsmtemp, aqsntemp, vcoul, I_epsA_array, ssxDittt, ngpown, ncouls, n1, ifreq, fact1, fact2, numThreadsPerBlock);
+                    d_ssxDittt_kernel(inv_igp_index, indinv, aqsmtemp, aqsntemp, vcoul, I_epsA_array, ssxDittt, ngpown, ncouls, n1, ifreq, fact1, fact2);
                 atomicAdd2(&asxDtemp_re[iw], GPUComplex_real(ssxDittt * occ));
                 atomicAdd2(&asxDtemp_im[iw], GPUComplex_imag(ssxDittt * occ));
             }
         }
         if(leftOvernfreqeval)
         {
-            const int iw = loopOvernfreqeval*numThreadsPerBlock + threadIdx.x;
+            const int iw = loopOvernfreqeval*blockDim.x + threadIdx.x;
             if(iw < nfreqeval)
             {
                 double wx = freqevalmin - ekq[n1] + freqevalstep;
@@ -396,9 +396,9 @@ __global__ void asxDtemp_solver_1D(int nvband, int nfreqeval, int ncouls, int ng
                 d_compute_fact(wx, nFreq, dFreqGrid, fact1, fact2, ifreq, 1, 0);
 
                 if(wx > 0)
-                    d_ssxDittt_kernel(inv_igp_index, indinv, aqsmtemp, aqsntemp, vcoul, I_epsR_array, ssxDittt, ngpown, ncouls, n1, ifreq, fact1, fact2, numThreadsPerBlock);
+                    d_ssxDittt_kernel(inv_igp_index, indinv, aqsmtemp, aqsntemp, vcoul, I_epsR_array, ssxDittt, ngpown, ncouls, n1, ifreq, fact1, fact2);
                 else
-                    d_ssxDittt_kernel(inv_igp_index, indinv, aqsmtemp, aqsntemp, vcoul, I_epsA_array, ssxDittt, ngpown, ncouls, n1, ifreq, fact1, fact2, numThreadsPerBlock);
+                    d_ssxDittt_kernel(inv_igp_index, indinv, aqsmtemp, aqsntemp, vcoul, I_epsA_array, ssxDittt, ngpown, ncouls, n1, ifreq, fact1, fact2);
                 atomicAdd2(&asxDtemp_re[iw], GPUComplex_real(ssxDittt * occ));
                 atomicAdd2(&asxDtemp_im[iw], GPUComplex_imag(ssxDittt * occ));
             }
@@ -407,32 +407,28 @@ __global__ void asxDtemp_solver_1D(int nvband, int nfreqeval, int ncouls, int ng
 }
 
 
-__global__ void achDtemp_cor_solver_2D(int number_bands, int nvband, int nfreqeval, int ncouls, int ngpown, int nFreq, double freqevalmin, double freqevalstep, double *ekq, double *dFreqGrid, int *inv_igp_index, int *indinv, GPUComplex *aqsmtemp, GPUComplex *aqsntemp, double *vcoul, GPUComplex *I_epsR_array, GPUComplex *I_epsA_array, GPUComplex *ach2Dtemp, double *achDtemp_cor_re, double *achDtemp_cor_im, GPUComplex *achDtemp_corb, int numThreadsPerBlock)
+__global__ void achDtemp_cor_solver_2D(int number_bands, int nvband, int nfreqeval, int ncouls, int ngpown, int nFreq, double freqevalmin, double freqevalstep, double *ekq, double *dFreqGrid, int *inv_igp_index, int *indinv, GPUComplex *aqsmtemp, GPUComplex *aqsntemp, double *vcoul, GPUComplex *I_epsR_array, GPUComplex *I_epsA_array, GPUComplex *ach2Dtemp, double *achDtemp_cor_re, double *achDtemp_cor_im, GPUComplex *achDtemp_corb)
 {
     const int n1 = blockIdx.y;
     const int iw = blockIdx.x;
 //    if(n1 < number_bands && iw < nfreqeval)
     {
         bool flag_occ;
-        double fact1, fact2, wx;
+        double fact1 = 0.00, fact2 = 0.00, wx = 0.00;
         GPUComplex schDi_cor(0.00, 0.00), schDi_corb(0.00, 0.00);
-        int ifreq;
+        int ifreq = 0.00;
         flag_occ = n1 < nvband;
         wx = freqevalmin - ekq[n1] + freqevalstep;
-        fact1 = 0.00, fact2 = 0.00;
-        ifreq = 0.00;
-
         d_compute_fact(wx, nFreq, dFreqGrid, fact1, fact2, ifreq, 2, flag_occ);
-
 
         if(wx > 0)
         {
             if(!flag_occ)
-                d_schDttt_corKernel1(schDi_cor, inv_igp_index, indinv, I_epsR_array, I_epsA_array, aqsmtemp, aqsntemp, vcoul,  ncouls, ifreq, ngpown, n1, fact1, fact2, numThreadsPerBlock);
+                d_schDttt_corKernel1(schDi_cor, inv_igp_index, indinv, I_epsR_array, I_epsA_array, aqsmtemp, aqsntemp, vcoul,  ncouls, ifreq, ngpown, n1, fact1, fact2);
         }
         else if(flag_occ)
         {
-            d_schDttt_corKernel2(schDi_cor, inv_igp_index, indinv, I_epsR_array, I_epsA_array, aqsmtemp, aqsntemp, vcoul,  ncouls, ifreq, ngpown, n1, fact1, fact2, numThreadsPerBlock, iw);
+            d_schDttt_corKernel2(schDi_cor, inv_igp_index, indinv, I_epsR_array, I_epsA_array, aqsmtemp, aqsntemp, vcoul,  ncouls, ifreq, ngpown, n1, fact1, fact2, iw);
         }
 
 
@@ -445,21 +441,21 @@ __global__ void achDtemp_cor_solver_2D(int number_bands, int nvband, int nfreqev
     } //n1
 }
 
-__global__ void achDtemp_cor_solver_1D(int number_bands, int nvband, int nfreqeval, int ncouls, int ngpown, int nFreq, double freqevalmin, double freqevalstep, double *ekq, double *dFreqGrid, int *inv_igp_index, int *indinv, GPUComplex *aqsmtemp, GPUComplex *aqsntemp, double *vcoul, GPUComplex *I_epsR_array, GPUComplex *I_epsA_array, GPUComplex *ach2Dtemp, double *achDtemp_cor_re, double *achDtemp_cor_im, GPUComplex *achDtemp_corb, int numThreadsPerBlock)
+__global__ void achDtemp_cor_solver_1D(int number_bands, int nvband, int nfreqeval, int ncouls, int ngpown, int nFreq, double freqevalmin, double freqevalstep, double *ekq, double *dFreqGrid, int *inv_igp_index, int *indinv, GPUComplex *aqsmtemp, GPUComplex *aqsntemp, double *vcoul, GPUComplex *I_epsR_array, GPUComplex *I_epsA_array, GPUComplex *ach2Dtemp, double *achDtemp_cor_re, double *achDtemp_cor_im, GPUComplex *achDtemp_corb)
 {
     const int n1 = blockIdx.x;
 //    if(n1 < number_bands)
     {
         int loopOvernfreqeval = 1, leftOvernfreqeval = 0;
-        if(nfreqeval > numThreadsPerBlock)
+        if(nfreqeval > blockDim.x)
         {
-            loopOvernfreqeval = nfreqeval / numThreadsPerBlock;
-            leftOvernfreqeval = nfreqeval % numThreadsPerBlock;
+            loopOvernfreqeval = nfreqeval / blockDim.x;
+            leftOvernfreqeval = nfreqeval % blockDim.x;
         }
-        for(int x = 0; x < loopOvernfreqeval && threadIdx.x < numThreadsPerBlock; ++x)
+        for(int x = 0; x < loopOvernfreqeval && threadIdx.x < blockDim.x; ++x)
         {
             bool flag_occ;
-            const int iw = x*numThreadsPerBlock + threadIdx.x;
+            const int iw = x*blockDim.x + threadIdx.x;
             double fact1, fact2, wx;
             GPUComplex schDi_cor(0.00, 0.00), schDi_corb(0.00, 0.00);
             int ifreq;
@@ -474,10 +470,10 @@ __global__ void achDtemp_cor_solver_1D(int number_bands, int nvband, int nfreqev
             if(wx > 0)
             {
                 if(!flag_occ)
-                    d_schDttt_corKernel1(schDi_cor, inv_igp_index, indinv, I_epsR_array, I_epsA_array, aqsmtemp, aqsntemp, vcoul,  ncouls, ifreq, ngpown, n1, fact1, fact2, numThreadsPerBlock);
+                    d_schDttt_corKernel1(schDi_cor, inv_igp_index, indinv, I_epsR_array, I_epsA_array, aqsmtemp, aqsntemp, vcoul,  ncouls, ifreq, ngpown, n1, fact1, fact2);
             }
             else if(flag_occ)
-                d_schDttt_corKernel2(schDi_cor, inv_igp_index, indinv, I_epsR_array, I_epsA_array, aqsmtemp, aqsntemp, vcoul,  ncouls, ifreq, ngpown, n1, fact1, fact2, numThreadsPerBlock, iw);
+                d_schDttt_corKernel2(schDi_cor, inv_igp_index, indinv, I_epsR_array, I_epsA_array, aqsmtemp, aqsntemp, vcoul,  ncouls, ifreq, ngpown, n1, fact1, fact2, iw);
 
             atomicAdd2(&achDtemp_cor_re[iw], GPUComplex_real(schDi_cor));
             atomicAdd2(&achDtemp_cor_im[iw], GPUComplex_imag(schDi_cor));
@@ -486,7 +482,7 @@ __global__ void achDtemp_cor_solver_1D(int number_bands, int nvband, int nfreqev
         if(leftOvernfreqeval)
         {
             bool flag_occ;
-            const int iw = loopOvernfreqeval*numThreadsPerBlock + threadIdx.x;
+            const int iw = loopOvernfreqeval*blockDim.x + threadIdx.x;
             double fact1, fact2, wx;
             GPUComplex schDi_cor(0.00, 0.00), schDi_corb(0.00, 0.00);
             int ifreq;
@@ -501,10 +497,10 @@ __global__ void achDtemp_cor_solver_1D(int number_bands, int nvband, int nfreqev
             if(wx > 0)
             {
                 if(!flag_occ)
-                    d_schDttt_corKernel1(schDi_cor, inv_igp_index, indinv, I_epsR_array, I_epsA_array, aqsmtemp, aqsntemp, vcoul,  ncouls, ifreq, ngpown, n1, fact1, fact2, numThreadsPerBlock);
+                    d_schDttt_corKernel1(schDi_cor, inv_igp_index, indinv, I_epsR_array, I_epsA_array, aqsmtemp, aqsntemp, vcoul,  ncouls, ifreq, ngpown, n1, fact1, fact2);
             }
             else if(flag_occ)
-                d_schDttt_corKernel2(schDi_cor, inv_igp_index, indinv, I_epsR_array, I_epsA_array, aqsmtemp, aqsntemp, vcoul,  ncouls, ifreq, ngpown, n1, fact1, fact2, numThreadsPerBlock, iw);
+                d_schDttt_corKernel2(schDi_cor, inv_igp_index, indinv, I_epsR_array, I_epsA_array, aqsmtemp, aqsntemp, vcoul,  ncouls, ifreq, ngpown, n1, fact1, fact2, iw);
 
             atomicAdd2(&achDtemp_cor_re[iw], GPUComplex_real(schDi_cor));
             atomicAdd2(&achDtemp_cor_im[iw], GPUComplex_imag(schDi_cor));
@@ -522,11 +518,11 @@ void d_achsDtemp_Kernel(int number_bands, int ngpown, int ncouls, int *inv_igp_i
 //    dim3 numBlocks(number_bands, ngpown);
     int numThreadsPerBlock=32;
 
-    achsDtemp_solver_2D<<<numBlocks, numThreadsPerBlock>>>(number_bands, ngpown, ncouls, inv_igp_index, indinv, aqsntemp, aqsmtemp, I_epsR_array, vcoul, achsDtemp_re, achsDtemp_im, numThreadsPerBlock);
+    achsDtemp_solver_2D<<<numBlocks, numThreadsPerBlock>>>(number_bands, ngpown, ncouls, inv_igp_index, indinv, aqsntemp, aqsmtemp, I_epsR_array, vcoul, achsDtemp_re, achsDtemp_im);
 #else
     dim3 numBlocks(number_bands, 1, 1);
     int numThreadsPerBlock=16;
-    achsDtemp_solver_1D<<<numBlocks, numThreadsPerBlock>>>(number_bands, ngpown, ncouls, inv_igp_index, indinv, aqsntemp, aqsmtemp, I_epsR_array, vcoul, achsDtemp_re, achsDtemp_im, numThreadsPerBlock);
+    achsDtemp_solver_1D<<<numBlocks, numThreadsPerBlock>>>(number_bands, ngpown, ncouls, inv_igp_index, indinv, aqsntemp, aqsmtemp, I_epsR_array, vcoul, achsDtemp_re, achsDtemp_im);
 #endif
 }
 
@@ -537,11 +533,11 @@ void d_asxDtemp_Kernel(int nvband, int nfreqeval, int ncouls, int ngpown, int nF
     dim3 numBlocks(nfreqeval, nvband);
     int numThreadsPerBlock=8;
 
-    asxDtemp_solver_2D<<<numBlocks, numThreadsPerBlock>>>(nvband, nfreqeval, ncouls, ngpown, nFreq, freqevalmin, freqevalstep, occ, ekq, dFreqGrid, inv_igp_index, indinv, aqsmtemp, aqsntemp, vcoul, I_epsR_array, I_epsA_array, asxDtemp_re, asxDtemp_im, numThreadsPerBlock);
+    asxDtemp_solver_2D<<<numBlocks, numThreadsPerBlock>>>(nvband, nfreqeval, ncouls, ngpown, nFreq, freqevalmin, freqevalstep, occ, ekq, dFreqGrid, inv_igp_index, indinv, aqsmtemp, aqsntemp, vcoul, I_epsR_array, I_epsA_array, asxDtemp_re, asxDtemp_im);
 #else
     dim3 numBlocks(nvband, 1, 1);
     int numThreadsPerBlock=8;
-    asxDtemp_solver_1D<<<numBlocks, numThreadsPerBlock>>>(nvband, nfreqeval, ncouls, ngpown, nFreq, freqevalmin, freqevalstep, occ, ekq, dFreqGrid, inv_igp_index, indinv, aqsmtemp, aqsntemp, vcoul, I_epsR_array, I_epsA_array, asxDtemp_re, asxDtemp_im, numThreadsPerBlock);
+    asxDtemp_solver_1D<<<numBlocks, numThreadsPerBlock>>>(nvband, nfreqeval, ncouls, ngpown, nFreq, freqevalmin, freqevalstep, occ, ekq, dFreqGrid, inv_igp_index, indinv, aqsmtemp, aqsntemp, vcoul, I_epsR_array, I_epsA_array, asxDtemp_re, asxDtemp_im);
 #endif
 
 }
@@ -553,11 +549,11 @@ void d_achDtemp_cor_Kernel(int number_bands, int nvband, int nfreqeval, int ncou
     dim3 numBlocks(nfreqeval, number_bands);
     int numThreadsPerBlock=8;
 
-    achDtemp_cor_solver_2D<<<numBlocks, numThreadsPerBlock>>>(number_bands, nvband, nfreqeval, ncouls, ngpown, nFreq, freqevalmin, freqevalstep, ekq, dFreqGrid, inv_igp_index, indinv, aqsmtemp, aqsntemp, vcoul, I_epsR_array, I_epsA_array, ach2Dtemp, achDtemp_cor_re, achDtemp_cor_im, achDtemp_corb, numThreadsPerBlock);
+    achDtemp_cor_solver_2D<<<numBlocks, numThreadsPerBlock>>>(number_bands, nvband, nfreqeval, ncouls, ngpown, nFreq, freqevalmin, freqevalstep, ekq, dFreqGrid, inv_igp_index, indinv, aqsmtemp, aqsntemp, vcoul, I_epsR_array, I_epsA_array, ach2Dtemp, achDtemp_cor_re, achDtemp_cor_im, achDtemp_corb);
 #else
     dim3 numBlocks(number_bands, 1, 1);
     int numThreadsPerBlock=32;
 
-    achDtemp_cor_solver_1D<<<numBlocks, numThreadsPerBlock>>>(number_bands, nvband, nfreqeval, ncouls, ngpown, nFreq, freqevalmin, freqevalstep, ekq, dFreqGrid, inv_igp_index, indinv, aqsmtemp, aqsntemp, vcoul, I_epsR_array, I_epsA_array, ach2Dtemp, achDtemp_cor_re, achDtemp_cor_im, achDtemp_corb, numThreadsPerBlock);
+    achDtemp_cor_solver_1D<<<numBlocks, blockDim.x>>>(number_bands, nvband, nfreqeval, ncouls, ngpown, nFreq, freqevalmin, freqevalstep, ekq, dFreqGrid, inv_igp_index, indinv, aqsmtemp, aqsntemp, vcoul, I_epsR_array, I_epsA_array, ach2Dtemp, achDtemp_cor_re, achDtemp_cor_im, achDtemp_corb);
 #endif
 }
