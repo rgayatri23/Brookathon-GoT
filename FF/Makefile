@@ -10,7 +10,7 @@ LINK = ${CXX}
 ifeq ($(CXX),pgc++)
 	CXXFLAGS=-O3 -std=c++11 --gnu_extensions -g -Munroll -mcmodel=medium
 	CXXFLAGS+=-acc -ta=tesla:cc70
-	CXXFLAGS+=-ta=tesla:managed
+	CXXFLAGS+=-ta=tesla:managed#,ptxinfo
 	CXXFLAGS+=-Minfo=accel
 	#CXXFLAGS+=-Mlarge_arrays
 	LINKFLAGS=-acc

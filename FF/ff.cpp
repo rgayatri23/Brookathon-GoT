@@ -81,15 +81,19 @@ static inline void compute_fact(double wx, int nFreq, double *dFreqGrid, double 
 
 static inline void ssxDittt_kernel(int *inv_igp_index, int *indinv, CustomComplex<double> *aqsmtemp, CustomComplex<double> *aqsntemp, double *vcoul, CustomComplex<double> *I_eps_array, CustomComplex<double> &ssxDittt, int ngpown, int ncouls, int n1,int ifreq, double fact1, double fact2, int igp, int my_igp)
 {
-    CustomComplex<double> ssxDitt(0.00, 0.00);
-    for(int ig = 0; ig < ncouls; ++ig)
+    double ssxDitt_re = 0.00, ssxDitt_im = 0.00;
+#pragma acc loop vector \
+    reduction(+:ssxDitt_re, ssxDitt_im)
+    for(int ig = 0; ig < ncouls; ++ig) //ncouls = 33401
     {
         CustomComplex<double> ssxDit = I_eps_array[ifreq*ngpown*ncouls + my_igp*ncouls + ig] * fact1 + \
                                      I_eps_array[(ifreq+1)*ngpown*ncouls + my_igp*ncouls + ig] * fact2;
 
-        ssxDitt += aqsntemp[n1*ncouls + ig] * CustomComplex_conj(aqsmtemp[n1*ncouls + igp]) * ssxDit * vcoul[igp];
+        CustomComplex<double> ssxDitt = aqsntemp[n1*ncouls + ig] * CustomComplex_conj(aqsmtemp[n1*ncouls + igp]) * ssxDit * vcoul[igp];
+        ssxDitt_re += CustomComplex_real(ssxDitt);
+        ssxDitt_im += CustomComplex_imag(ssxDitt);
     }
-    ssxDittt = ssxDitt;
+    ssxDittt = CustomComplex<double> (ssxDitt_re, ssxDitt_im);
 }
 
 //#pragma acc routine
@@ -101,32 +105,38 @@ void achsDtemp_Kernel(int number_bands, int ngpown, int ncouls, int nFreq, int *
 #pragma acc enter data copyin(inv_igp_index[0:ngpown], indinv[0:ncouls], aqsmtemp[0:number_bands*ncouls], aqsntemp[0:number_bands*ncouls], I_epsR_array[0:nFreq*ngpown*ncouls], I_epsA_array[0:nFreq*ngpown*ncouls])
 
     gettimeofday(&startTimer, NULL);
-#pragma acc parallel loop gang present(inv_igp_index[0:ngpown], indinv[0:ncouls], aqsmtemp[0:number_bands*ncouls], aqsntemp[0:number_bands*ncouls], I_epsR_array[0:nFreq*ngpown*ncouls])\
-    reduction(+:achsDtemp_re, achsDtemp_im)
-    for(int n1 = 0; n1 < number_bands; ++n1)
+#pragma acc parallel loop gang collapse(2) present(inv_igp_index[0:ngpown], indinv[0:ncouls], aqsmtemp[0:number_bands*ncouls], aqsntemp[0:number_bands*ncouls], I_epsR_array[0:nFreq*ngpown*ncouls])\
+    reduction(+:achsDtemp_re, achsDtemp_im) \
+    num_gangs(number_bands) num_workers(1) vector_length(128)
+    for(int n1 = 0; n1 < number_bands; ++n1) //number_bands = 15023
     {
-#pragma acc loop vector
-        for(int my_igp = 0; my_igp < ngpown; ++my_igp)
+//#pragma acc loop vector\
+    reduction(+:achsDtemp_re, achsDtemp_im)
+//#pragma acc loop seq
+        for(int my_igp = 0; my_igp < ngpown; ++my_igp) //ngpown = 66
         {
             int indigp = inv_igp_index[my_igp];
             int igp = indinv[indigp];
-
 //            CustomComplex<double> schsDtemp(0.00, 0.00);
             double schsDtemp_re = 0.00, schsDtemp_im = 0.00;
+            CustomComplex<double> aqsmtemp_conj = CustomComplex_conj(aqsmtemp[n1*ncouls + igp]);
+            const int counter1 = 1*ngpown*ncouls + my_igp*ncouls;
+            const int counter2 = n1*ncouls;
 
-//#pragma acc loop vector \
+#pragma acc loop vector \
             reduction(-:schsDtemp_re, schsDtemp_im)
-            for(int ig = 0; ig < ncouls; ++ig)
+            for(int ig = 0; ig < ncouls; ++ig) //ncouls = 33401
             {
-                CustomComplex<double> schsDtemp = aqsntemp[n1*ncouls + ig] * CustomComplex_conj(aqsmtemp[n1*ncouls + igp]) * I_epsR_array[1*ngpown*ncouls + my_igp*ncouls + ig];
-                schsDtemp_re -= CustomComplex_real(schsDtemp);
-                schsDtemp_im -= CustomComplex_real(schsDtemp);
+//                schsDtemp = aqsntemp[n1*ncouls + ig] * CustomComplex_conj(aqsmtemp[n1*ncouls + igp]) * I_epsR_array[1*ngpown*ncouls + my_igp*ncouls + ig];
+                schsDtemp_re -= CustomComplex_real(aqsntemp[counter2 + ig] * aqsmtemp_conj * I_epsR_array[counter1 + ig]);
+                schsDtemp_im -= CustomComplex_imag(aqsntemp[counter2 + ig] * aqsmtemp_conj * I_epsR_array[counter1 + ig]);
+//                schsDtemp_re -= CustomComplex_real(schsDtemp);
+//                schsDtemp_im -= CustomComplex_imag(schsDtemp);
             }
+//            schsDtemp = CustomComplex<double> (schsDtemp_re, schsDtemp_im);
 
-            CustomComplex<double> schsDtemp(schsDtemp_re, schsDtemp_im);
-
-            achsDtemp_re += CustomComplex_real(schsDtemp * vcoul[igp] * 0.5);
-            achsDtemp_im += CustomComplex_imag(schsDtemp * vcoul[igp] * 0.5);
+            achsDtemp_re += schsDtemp_re * vcoul[igp] * 0.5;
+            achsDtemp_im += schsDtemp_im * vcoul[igp] * 0.5;
         }
     } //n1
     achsDtemp = CustomComplex<double> (achsDtemp_re, achsDtemp_im) ;
@@ -139,22 +149,25 @@ void asxDtemp_Kernel(int number_bands, int nvband, int nfreqeval, int ncouls, in
 {
     double *asxDtemp_re = new double[nfreqeval];
     double *asxDtemp_im = new double[nfreqeval];
+#pragma acc parallel create(asxDtemp_re[0:nfreqeval], asxDtemp_im[0:nfreqeval])
+{
+#pragma acc loop gang,vector
     for(int iw = 0; iw < nfreqeval; ++iw)
     {
         asxDtemp_re[iw] = 0.00;
         asxDtemp_im[iw] = 0.00;
     }
+}
 
     timeval startTimer , endTimer;
     gettimeofday(&startTimer, NULL);
-#pragma acc parallel loop gang present(inv_igp_index[0:ngpown], indinv[0:ncouls], aqsmtemp[0:number_bands*ncouls], aqsntemp[0:number_bands*ncouls], I_epsR_array[0:nFreq*ngpown*ncouls], I_epsA_array[0:nFreq*ngpown*ncouls]) \
-    num_gangs(nvband) num_workers(1) vector_length(8)
-    for(int n1 = 0; n1 < nvband; ++n1)
+#pragma acc parallel loop gang collapse(3) present(asxDtemp_re[0:nfreqeval], asxDtemp_im[0:nfreqeval], inv_igp_index[0:ngpown], indinv[0:ncouls], aqsmtemp[0:number_bands*ncouls], aqsntemp[0:number_bands*ncouls], I_epsR_array[0:nFreq*ngpown*ncouls], I_epsA_array[0:nFreq*ngpown*ncouls])
+    for(int n1 = 0; n1 < nvband; ++n1) //nvband=1998
     {
-#pragma acc loop vector
-        for(int my_igp = 0; my_igp < ngpown; ++my_igp)
+//#pragma acc loop vector
+        for(int my_igp = 0; my_igp < ngpown; ++my_igp) //ngpown = 66
         {
-            for(int iw = 0; iw < nfreqeval; ++iw)
+            for(int iw = 0; iw < nfreqeval; ++iw) //nfreqeval = 10
             {
                 double wx = freqevalmin - ekq[n1] + freqevalstep;
                 int indigp = inv_igp_index[my_igp];
@@ -186,6 +199,7 @@ void asxDtemp_Kernel(int number_bands, int nvband, int nfreqeval, int ncouls, in
     gettimeofday(&endTimer, NULL);
     elapsed_time = elapsedTime(startTimer, endTimer);
 
+#pragma acc exit data delete(asxDtemp_re[0:nfreqeval], asxDtemp_im[0:nfreqeval])
     free(asxDtemp_re);
     free(asxDtemp_im);
 }
@@ -254,14 +268,14 @@ void achDtemp_cor_Kernel(int number_bands, int nvband, int nfreqeval, int ncouls
     timeval startTimer , endTimer;
     gettimeofday(&startTimer, NULL);
 
-#pragma acc parallel loop gang present(inv_igp_index[0:ngpown], indinv[0:ncouls], aqsmtemp[0:number_bands*ncouls], aqsntemp[0:number_bands*ncouls], I_epsR_array[0:nFreq*ngpown*ncouls], I_epsA_array[0:nFreq*ngpown*ncouls])\
+#pragma acc parallel loop gang vector collapse(2) present(inv_igp_index[0:ngpown], indinv[0:ncouls], aqsmtemp[0:number_bands*ncouls], aqsntemp[0:number_bands*ncouls], I_epsR_array[0:nFreq*ngpown*ncouls], I_epsA_array[0:nFreq*ngpown*ncouls])\
     copyout(achDtemp_cor_re[0:nfreqeval], achDtemp_cor_im[0:nfreqeval]) \
-    num_gangs(number_bands) num_workers(1) vector_length(16)
+    num_gangs(number_bands) num_workers(1) vector_length(32)
     for(int n1 = 0; n1 < number_bands; ++n1)
     {
         flag_occ = n1 < nvband;
 
-#pragma acc loop vector
+//#pragma acc loop vector
         for(int iw = 0; iw < nfreqeval; ++iw)
         {
             CustomComplex<double> sch2Di(0.00, 0.00);
@@ -304,7 +318,6 @@ static inline void schDttt_corKernel1(CustomComplex<double> &schDttt_cor, int *i
     int blkSize = 512;
     double schDttt_cor_re = 0.00, schDttt_cor_im = 0.00, \
         schDttt_re = 0.00, schDttt_im = 0.00;
-//#pragma omp parallel for default(shared) collapse(2) reduction(+:schDttt_cor_re, schDttt_cor_im, schDttt_re, schDttt_im)
     for(int igbeg = 0; igbeg < ncouls; igbeg += blkSize)
     {
         for(int my_igp = 0; my_igp < ngpown; ++my_igp)
