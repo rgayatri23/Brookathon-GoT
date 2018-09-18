@@ -546,7 +546,7 @@ int main(int argc, char** argv)
     asxDtemp_Kernel(nvband, nfreqeval, ncouls, ngpown, nFreq, freqevalmin, freqevalstep, occ, ekq, dFreqGrid, inv_igp_index, indinv, aqsmtemp, aqsntemp, vcoul, I_epsR_array, I_epsA_array, asxDtemp);
 #else
     d_asxDtemp_Kernel(nvband, nfreqeval, ncouls, ngpown, nFreq, freqevalmin, freqevalstep, occ, d_ekq, d_dFreqGrid, d_inv_igp_index, d_indinv, d_aqsmtemp, d_aqsntemp, d_vcoul, d_I_epsR_array, d_I_epsA_array, d_asxDtemp_re, d_asxDtemp_im);
-
+    cudaDeviceSynchronize();
 #endif
     gettimeofday(&end_asxDtemp_Kernel, NULL);
 
@@ -560,12 +560,13 @@ int main(int argc, char** argv)
     achDtemp_cor_Kernel(number_bands, nvband, nfreqeval, ncouls, ngpown, nFreq, freqevalmin, freqevalstep, ekq, dFreqGrid, inv_igp_index, indinv, aqsmtemp, aqsntemp, vcoul, I_epsR_array, I_epsA_array, schDi_cor, schDi_corb, sch2Di, ach2Dtemp, achDtemp_cor, achDtemp_corb);
 #else
     d_achDtemp_cor_Kernel(number_bands, nvband, nfreqeval, ncouls, ngpown, nFreq, freqevalmin, freqevalstep, d_ekq, d_dFreqGrid, d_inv_igp_index, d_indinv, d_aqsmtemp, d_aqsntemp, d_vcoul, d_I_epsR_array, d_I_epsA_array, d_ach2Dtemp, d_achDtemp_cor_re, d_achDtemp_cor_im, d_achDtemp_corb);
+    cudaDeviceSynchronize();
 #endif
     gettimeofday(&end_achDtemp_cor_Kernel, NULL);
 
 #if CUDA_VER
-    cudaDeviceSynchronize();
-//    CudaSafeCall(cudaMemcpy(achsDtemp_re, d_achsDtemp_re, sizeof(double), cudaMemcpyDeviceToHost));
+//    cudaDeviceSynchronize();
+    CudaSafeCall(cudaMemcpy(achsDtemp_re, d_achsDtemp_re, sizeof(double), cudaMemcpyDeviceToHost));
     CudaSafeCall(cudaMemcpy(achsDtemp_im, d_achsDtemp_im, sizeof(double), cudaMemcpyDeviceToHost));
     GPUComplex achsDtemp(*achsDtemp_re, *achsDtemp_im);
 
@@ -584,8 +585,8 @@ int main(int argc, char** argv)
 
     gettimeofday(&endTimer_Kernel, NULL);
     double elapsed_achsDtemp = elapsedTime(start_achsDtemp_Kernel, end_achsDtemp_Kernel);
-//    double elapsed_asxDtemp = elapsedTime(start_asxDtemp_Kernel, end_asxDtemp_Kernel);
-//    double elapsed_achDtemp_cor = elapsedTime(start_achDtemp_cor_Kernel, end_achDtemp_cor_Kernel);
+    double elapsed_asxDtemp = elapsedTime(start_asxDtemp_Kernel, end_asxDtemp_Kernel);
+    double elapsed_achDtemp_cor = elapsedTime(start_achDtemp_cor_Kernel, end_achDtemp_cor_Kernel);
     double elapsedTimer_Kernel = elapsedTime(startTimer_Kernel, endTimer_Kernel);
 
     cout << "achsDtemp = " ;
@@ -596,8 +597,8 @@ int main(int argc, char** argv)
     achDtemp_cor[0].print();
 
     cout << "********** achsDtemp Time Taken **********= " << elapsed_achsDtemp << " secs" << endl;
-//    cout << "********** asxDtemp Time Taken **********= " << elapsed_asxDtemp << " secs" << endl;
-//    cout << "********** achDtemp_cor Time Taken **********= " << elapsed_achDtemp_cor << " secs" << endl;
+    cout << "********** asxDtemp Time Taken **********= " << elapsed_asxDtemp << " secs" << endl;
+    cout << "********** achDtemp_cor Time Taken **********= " << elapsed_achDtemp_cor << " secs" << endl;
     cout << "********** Kernel Time Taken **********= " << elapsedTimer_Kernel << " secs" << endl;
 
 #if CUDA_VER
