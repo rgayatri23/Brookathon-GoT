@@ -288,13 +288,11 @@ __global__ void achsDtemp_solver_1D(int number_bands, int ngpown, int ncouls, in
     for( int x = 0; x < loopOverngpown && threadIdx.x < blockDim.x ; ++x)
     {
         const int my_igp = x*blockDim.x + threadIdx.x;
-        if(my_igp < ngpown)
-        {
-            int indigp = inv_igp_index[my_igp];
-            int igp = indinv[indigp];
-            for(int ig = 0; ig < ncouls; ++ig)
-                schsDtemp = schsDtemp - aqsntemp[n1*ncouls + ig] * GPUComplex_conj(aqsmtemp[n1*ncouls + igp]) * I_epsR_array[1*ngpown*ncouls + my_igp*ncouls + ig]* vcoul[ig] * 0.5;
-        }
+        int indigp = inv_igp_index[my_igp];
+        int igp = indinv[indigp];
+
+        for(int ig = 0; ig < ncouls; ++ig)
+            schsDtemp = schsDtemp - aqsntemp[n1*ncouls + ig] * GPUComplex_conj(aqsmtemp[n1*ncouls + igp]) * I_epsR_array[1*ngpown*ncouls + my_igp*ncouls + ig]* vcoul[ig] * 0.5;
     }
     if(leftOverngpown)
     {
