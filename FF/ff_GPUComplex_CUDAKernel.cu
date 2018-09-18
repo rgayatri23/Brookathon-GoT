@@ -278,15 +278,15 @@ __device__ void d_schDttt_corKernel2(GPUComplex &schDttt_cor, int *inv_igp_index
 __global__ void achsDtemp_solver_2D_v2(int number_bands, int ngpown, int ncouls, int *inv_igp_index, int *indinv, GPUComplex *aqsntemp, GPUComplex *aqsmtemp, GPUComplex *I_epsR_array, double *vcoul, double *achsDtemp_re, double *achsDtemp_im)
 {
     //prepare redcution
-    //typedef cub::BlockReduce<double, 128, cub::BLOCK_REDUCE_WARP_REDUCTIONS, 1> BlockReduce;
+    typedef cub::BlockReduce<double, 128, cub::BLOCK_REDUCE_WARP_REDUCTIONS, 4> BlockReduce;
     
     GPUComplex schsDtemp(0.00, 0.00);
     
     const int iny = blockIdx.y * blockDim.y + threadIdx.y;
     const int inx = blockIdx.x * blockDim.x + threadIdx.x;
     //__shared__ double schsDtemp_block_re, schsDtemp_block_im;
-    //double schsDtemp_red_re, schsDtemp_red_im;
-    //__shared__ typename BlockReduce::TempStorage temp_storage;
+    double schsDtemp_red_re, schsDtemp_red_im;
+    __shared__ typename BlockReduce::TempStorage temp_storage;
     
     //schsDtemp_block_re = 0.;
     //schsDtemp_block_im = 0.;
@@ -303,18 +303,18 @@ __global__ void achsDtemp_solver_2D_v2(int number_bands, int ngpown, int ncouls,
         
         schsDtemp = schsDtemp - aqsntemp[n1*ncouls + ig] * GPUComplex_conj(aqsmtemp[n1*ncouls + igp]) * I_epsR_array[1*ngpown*ncouls + my_igp*ncouls + ig]* vcoul[ig] * 0.5;
         
-        //schsDtemp_red_re = BlockReduce(temp_storage).Sum(GPUComplex_real(schsDtemp));
-        //schsDtemp_red_im = BlockReduce(temp_storage).Sum(GPUComplex_imag(schsDtemp));
-        atomicAdd2(achsDtemp_re, GPUComplex_real(schsDtemp));
-        atomicAdd2(achsDtemp_im, GPUComplex_imag(schsDtemp));
+        schsDtemp_red_re = BlockReduce(temp_storage).Sum(GPUComplex_real(schsDtemp));
+        schsDtemp_red_im = BlockReduce(temp_storage).Sum(GPUComplex_imag(schsDtemp));
+        //atomicAdd2(achsDtemp_re, GPUComplex_real(schsDtemp));
+        //atomicAdd2(achsDtemp_im, GPUComplex_imag(schsDtemp));
         //__syncthreads();
         
-        //if(threadIdx.x==0 && threadIdx.y==0){
+        if(threadIdx.x==0 && threadIdx.y==0){
             //atomicAdd2(achsDtemp_re, schsDtemp_block_re);
             //atomicAdd2(achsDtemp_im, schsDtemp_block_im);
-            //atomicAdd2(achsDtemp_re, schsDtemp_red_re);
-            //atomicAdd2(achsDtemp_im, schsDtemp_red_im);
-            //}
+            atomicAdd2(achsDtemp_re, schsDtemp_red_re);
+            atomicAdd2(achsDtemp_im, schsDtemp_red_im);
+        }
     }
 }
 
@@ -554,8 +554,8 @@ void d_achsDtemp_Kernel(int number_bands, int ngpown, int ncouls, int *inv_igp_i
 //    gpuErrchk(cudaPeekAtLastError());
 #if defined(__Kernel_2D)
     //int numThreadsPerBlock=32;
-    dim3 numThreads(32, 1);
-    dim3 numBlocks( ceil(size_t(ncouls)*size_t(ngpown)/numThreads.x), ceil(size_t(number_bands)/numThreads.y) );
+    dim3 numThreads(128, 4);
+    dim3 numBlocks( int(ceil(size_t(ncouls)*size_t(ngpown)/double(numThreads.x))), int(ceil(size_t(number_bands)/double(numThreads.y))) );
 //    dim3 numBlocks(number_bands, ngpown);
     
     std::cout << "numBlocks(" << numBlocks.x << "," << numBlocks.y << ")" << " numThreads(" << numThreads.x << "," << numThreads.y << ")" << std::endl;
