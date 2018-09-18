@@ -10,7 +10,7 @@ ifeq ($(CXX),nvcc)
 	CXXFLAGS= -g -O3 -std=c++11 -Wno-deprecated-gpu-targets 
 #	CXXFLAGS+= -Xptxas -v --maxrregcount=150
  #   CXXFLAG+=-arch=sm_35
-    CXXFLAGS+=-arch=sm_70
+	    CXXFLAGS+=-arch=sm_70 -lineinfo
 	LINKFLAGS=-Wno-deprecated-gpu-targets
 endif 
 
