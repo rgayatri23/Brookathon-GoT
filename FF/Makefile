@@ -7,7 +7,7 @@ CXX = nvcc
 LINK = ${CXX}
 
 ifeq ($(CXX),nvcc)
-	CXXFLAGS= -g -O3 -std=c++11 -Wno-deprecated-gpu-targets 
+	CXXFLAGS= -g -O3 -std=c++11 -Wno-deprecated-gpu-targets -I/apps/cuda/9.2/include -I../cub
 #	CXXFLAGS+= -Xptxas -v --maxrregcount=150
  #   CXXFLAG+=-arch=sm_35
 	    CXXFLAGS+=-arch=sm_70 -lineinfo --ptxas-options=-v
