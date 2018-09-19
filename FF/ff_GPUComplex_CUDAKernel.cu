@@ -218,39 +218,6 @@ __device__ void d_schDttt_corKernel2(GPUComplex &schDttt_cor, int *inv_igp_index
     schDttt_cor = GPUComplex (schDttt_cor_re, schDttt_cor_im);
 }
 
-
-template<int T>
-__global__ void achsDtemp_solver_1D(int number_bands, int ngpown, int ncouls, int *inv_igp_index, int *indinv, GPUComplex *aqsntemp, GPUComplex *aqsmtemp, GPUComplex *I_epsR_array, REAL *vcoul, REAL *achsDtemp_re, REAL *achsDtemp_im)
-{
-    const int n1 = blockIdx.x;
-    int numBlk = (ncouls+blockDim.x-1)/blockDim.x;
-    typedef cub::BlockReduce<GPUComplex, T> BlockReduce;
-    GPUComplex schsDtemp_red(0., 0.);
-    __shared__ typename BlockReduce::TempStorage temp_storage;
-
-
-    GPUComplex schsDtemp(0.00, 0.00);
-
-        for(int my_igp = 0; my_igp < ngpown; ++my_igp)
-        {
-            int indigp = inv_igp_index[my_igp];
-            int igp = indinv[indigp];
-
-            for(int blk = 0; blk < numBlk; blk++)
-            {
-            int ig = blk * blockDim.x + threadIdx.x;
-            if (ig< ncouls)
-            schsDtemp = schsDtemp - aqsntemp[n1*ncouls + ig] * thrust::conj(aqsmtemp[n1*ncouls + igp]) * I_epsR_array[1*ngpown*ncouls + my_igp*ncouls + ig]* vcoul[ig] * 0.5;
-            }
-        }
-    schsDtemp_red = BlockReduce(temp_storage).Sum(schsDtemp);
-
-    if(threadIdx.x==0){
-        atomicAdd2(achsDtemp_re, schsDtemp_red.real());
-        atomicAdd2(achsDtemp_im, schsDtemp_red.imag());
-    }
-}
-
 __global__ void asxDtemp_solver_2D(int nvband, int nfreqeval, int ncouls, int ngpown, int nFreq, REAL freqevalmin, REAL freqevalstep, REAL occ, REAL *ekq, REAL *dFreqGrid, int *inv_igp_index, int *indinv, GPUComplex *aqsmtemp, GPUComplex *aqsntemp, REAL *vcoul, GPUComplex *I_epsR_array, GPUComplex *I_epsA_array, REAL *asxDtemp_re, REAL *asxDtemp_im)
 {
     const int n1 = blockIdx.y;
