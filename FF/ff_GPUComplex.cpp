@@ -325,8 +325,10 @@ int main(int argc, char** argv)
         start_achsDtemp_Kernel, end_achsDtemp_Kernel, \
         start_achsDtemp_mixed_Kernel, end_achsDtemp_mixed_Kernel, \
         start_asxDtemp_Kernel, end_asxDtemp_Kernel, \
+        start_asxDtemp_mixed_Kernel, end_asxDtemp_mixed_Kernel, \
         start_achDtemp_Kernel, end_achDtemp_Kernel,
         start_achDtemp_cor_Kernel, end_achDtemp_cor_Kernel, \
+        start_achDtemp_cor_mixed_Kernel, end_achDtemp_cor_mixed_Kernel, \
         start_preKernel, end_preKernel;
 
     gettimeofday(&start_preKernel, NULL);
@@ -390,14 +392,22 @@ int main(int argc, char** argv)
 
 
     //Variables used for Cuda:
+    //single prec
     REAL *asxDtemp_re = new REAL[nfreqeval];
     REAL *asxDtemp_im = new REAL[nfreqeval];
     REAL *achDtemp_cor_re = new REAL[nfreqeval];
     REAL *achDtemp_cor_im = new REAL[nfreqeval];
+    //double prec
+    double *asxDtemp_reD = new double[nfreqeval];
+    double *asxDtemp_imD = new double[nfreqeval];
+    double *achDtemp_cor_reD = new double[nfreqeval];
+    double *achDtemp_cor_imD = new double[nfreqeval];
 
 #if CUDA_VER
+    //real prec
     REAL *achsDtemp_re = new REAL;
     REAL *achsDtemp_im = new REAL;
+    //double
     double *achsDtemp_reD = new double;
     double *achsDtemp_imD = new double;
     //Allocated Memory on Device
@@ -406,10 +416,13 @@ int main(int argc, char** argv)
         *d_achsDtemp, *d_ach2Dtemp , *d_achDtemp_corb;
 
     int *d_inv_igp_index, *d_indinv;
-    double *d_achsDtemp_reD, *d_achsDtemp_imD;
     REAL *d_vcoul, *d_dFreqGrid, *d_achsDtemp_re, *d_achsDtemp_im, \
         *d_ekq, *d_asxDtemp_re, *d_asxDtemp_im, *d_achDtemp_cor_re, *d_achDtemp_cor_im;
+    double *d_achsDtemp_reD, *d_achsDtemp_imD, *d_achsDtempD, \
+        *d_asxDtemp_reD, *d_asxDtemp_imD, *d_achDtemp_cor_reD, *d_achDtemp_cor_imD ;
 
+    //Input
+    //real prec
     CudaSafeCall(cudaMallocManaged((void**) &d_aqsmtemp, number_bands*ncouls*sizeof(GPUComplex)));
     CudaSafeCall(cudaMallocManaged((void**) &d_aqsntemp, number_bands*ncouls*sizeof(GPUComplex)));
     CudaSafeCall(cudaMallocManaged((void**) &d_I_epsR_array, nFreq*ngpown*ncouls*sizeof(GPUComplex)));
@@ -426,13 +439,18 @@ int main(int argc, char** argv)
     CudaSafeCall(cudaMallocManaged((void**) &d_achDtemp_corb, nfreqeval*sizeof(GPUComplex)));
 
     //Output
+    //single prec
     CudaSafeCall(cudaMallocManaged((void**) &d_achsDtemp, sizeof(GPUComplex)));
     CudaSafeCall(cudaMallocManaged((void**) &d_achsDtemp_re, sizeof(REAL)));
     CudaSafeCall(cudaMallocManaged((void**) &d_achsDtemp_im, sizeof(REAL)));
-    CudaSafeCall(cudaMallocManaged((void**) &d_achsDtemp_reD, sizeof(double)));
-    CudaSafeCall(cudaMallocManaged((void**) &d_achsDtemp_imD, sizeof(double)));
     CudaSafeCall(cudaMallocManaged((void**) &d_asxDtemp_re, nfreqeval*sizeof(REAL)));
     CudaSafeCall(cudaMallocManaged((void**) &d_asxDtemp_im, nfreqeval*sizeof(REAL)));
+    //double prec
+    CudaSafeCall(cudaMallocManaged((void**) &d_achsDtempD, sizeof(GPUComplexD)));
+    CudaSafeCall(cudaMallocManaged((void**) &d_achsDtemp_reD, sizeof(double)));
+    CudaSafeCall(cudaMallocManaged((void**) &d_achsDtemp_imD, sizeof(double)));
+    CudaSafeCall(cudaMallocManaged((void**) &d_asxDtemp_reD, nfreqeval*sizeof(double)));
+    CudaSafeCall(cudaMallocManaged((void**) &d_asxDtemp_imD, nfreqeval*sizeof(double)));
 
 #endif
 
@@ -509,6 +527,8 @@ int main(int argc, char** argv)
         achDtemp_corb[i] = expr0;
         achDtemp_cor_re[i] = 0.00;
         achDtemp_cor_im[i] = 0.00;
+        achDtemp_cor_reD[i] = 0.00;
+        achDtemp_cor_imD[i] = 0.00;
     }
     GPUComplex *ssxDittt = new GPUComplex;
 
@@ -527,6 +547,9 @@ int main(int argc, char** argv)
     CudaSafeCall(cudaMemcpy(d_achDtemp_corb, achDtemp_corb, nfreqeval*sizeof(GPUComplex), cudaMemcpyHostToDevice));
     CudaSafeCall(cudaMemcpy(d_achDtemp_cor_re, achDtemp_cor_re, nfreqeval*sizeof(REAL), cudaMemcpyHostToDevice));
     CudaSafeCall(cudaMemcpy(d_achDtemp_cor_im, achDtemp_cor_im, nfreqeval*sizeof(REAL), cudaMemcpyHostToDevice));
+    //double prec
+    CudaSafeCall(cudaMemcpy(d_achDtemp_cor_reD, achDtemp_cor_reD, nfreqeval*sizeof(double), cudaMemcpyHostToDevice));
+    CudaSafeCall(cudaMemcpy(d_achDtemp_cor_imD, achDtemp_cor_imD, nfreqeval*sizeof(double), cudaMemcpyHostToDevice));
 #endif
 
     gettimeofday(&end_preKernel, NULL);
@@ -645,12 +668,19 @@ int main(int argc, char** argv)
     cudaFree(d_achsDtemp);
     cudaFree(d_achsDtemp_re);
     cudaFree(d_achsDtemp_im);
-    cudaFree(d_achsDtemp_reD);
-    cudaFree(d_achsDtemp_imD);
     cudaFree(d_asxDtemp_re);
     cudaFree(d_asxDtemp_im);
     cudaFree(d_achDtemp_cor_re);
     cudaFree(d_achDtemp_cor_im);
+    
+    //double prec
+    cudaFree(d_achsDtempD);
+    cudaFree(d_achsDtemp_reD);
+    cudaFree(d_achsDtemp_imD);
+    cudaFree(d_asxDtemp_reD);
+    cudaFree(d_asxDtemp_imD);
+    cudaFree(d_achDtemp_cor_reD);
+    cudaFree(d_achDtemp_cor_imD);
 #endif
 
 //Free the allocated memory
@@ -679,6 +709,11 @@ int main(int argc, char** argv)
     free(schDt_matrix);
     free(achDtemp_cor_re);
     free(achDtemp_cor_im);
+    //double
+    free(asxDtemp_reD);
+    free(asxDtemp_imD);
+    free(achDtemp_cor_reD);
+    free(achDtemp_cor_imD);
 
     return 0;
 }
