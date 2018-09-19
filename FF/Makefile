@@ -1,6 +1,7 @@
 EXE = ff.ex
 #SRC = testOpenACC.cpp
-SRC = ff.cpp
+SRC = ff_orig.cpp
+#SRC = ff.cpp
 
 #CXX = xlc++_r
 CXX = pgc++

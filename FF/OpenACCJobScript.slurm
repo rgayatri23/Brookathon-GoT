@@ -12,7 +12,8 @@ pwd; hostname; date
 export PGI_ACC_TIME=1
 ./${exec}.ex ${input}
 #pgprof ./${exec}.ex ${input}
-nvprof --kernels "_Z16achsDtemp_KerneliiiiPiS_P13CustomComplexIdES2_S2_S2_PdRS1_Rd" --metrics all ./${exec}.ex ${input}
+#nvprof --metrics all ./${exec}.ex ${input}
+#nvprof --kernels "_Z16achsDtemp_KerneliiiiPiS_P13CustomComplexIdES2_S2_S2_PdRS1_Rd" --metrics all ./${exec}.ex ${input}
 
 #cuda-memcheck error-exitcode ./${exec}.ex ${input}
 #pgprof -o ff-pgprof.nvvp ./${exec}.ex ${input}
