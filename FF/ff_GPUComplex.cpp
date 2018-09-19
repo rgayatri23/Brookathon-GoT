@@ -1,6 +1,7 @@
 //#include "../ComplexClass/GPUComplex.h"
 #include "../ComplexClass/cudaAlloc.h"
 #include "kernels.h"
+#include "types.h"
 
 #define CUDA_VER 1
 

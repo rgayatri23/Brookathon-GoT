@@ -1,4 +1,4 @@
-#include <thrust/complex.h>
+#include "types.h"
 
 using GPUComplex = thrust::complex<double>;
 
