@@ -46,17 +46,17 @@ class GPUComplex : public double2{
 
         return *this;
     }
-
+        
     __host__ __device__ GPUComplex& operator +=(const GPUComplex& src) {
-        x = src.x + this->x;
-        y = src.y + this->y;
+        x += src.x;
+        y += src.y;
 
         return *this;
     }
 
     __host__ __device__ GPUComplex& operator -=(const GPUComplex& src) {
-        x = src.x - this->x;
-        y = src.y - this->y;
+        x -= src.x;
+        y -= src.y;
 
         return *this;
     }
@@ -100,8 +100,8 @@ class GPUComplex : public double2{
 // 6 flops
 //    template<class real, class imag>
     __host__ __device__ friend inline GPUComplex operator *(const GPUComplex &a, const GPUComplex &b) {
-        double x_this = a.x * b.x - a.y*b.y ;
-        double y_this = a.x * b.y + a.y*b.x ;
+        double x_this = a.x * b.x - a.y * b.y ;
+        double y_this = a.x * b.y + a.y * b.x ;
         GPUComplex result(x_this, y_this);
         return (result);
     }
@@ -127,26 +127,26 @@ class GPUComplex : public double2{
     }
 
     //template<class real, class imag>
-    __host__ __device__ friend inline GPUComplex operator +(const double &a, GPUComplex& src) {
+    __host__ __device__ friend inline GPUComplex operator+(const double &a, GPUComplex& src) {
         GPUComplex result(a + src.x, src.y);
         return result;
     }
 
     //template<class real, class imag>
-    __host__ __device__ friend inline GPUComplex operator +(GPUComplex a, GPUComplex b) {
+    __host__ __device__ friend inline GPUComplex operator+(const GPUComplex& a, const GPUComplex& b) {
         GPUComplex result(a.x + b.x, a.y+b.y);
         return result;
     }
-
+    
     //template<class real, class imag>
     __host__ __device__ friend inline GPUComplex operator /(GPUComplex a, GPUComplex b) {
 
         GPUComplex b_conj = GPUComplex_conj(b);
         GPUComplex numerator = a * b_conj;
-        GPUComplex denominator = b * b_conj;
+        double denominator = b.x * b.x + b.y * b.y;
 
-        double re_this = numerator.x / denominator.x;
-        double im_this = numerator.y / denominator.x;
+        double re_this = numerator.x / denominator;
+        double im_this = numerator.y / denominator;
 
         GPUComplex result(re_this, im_this);
         return result;
@@ -169,6 +169,9 @@ class GPUComplex : public double2{
 
     //template<class real, class imag>
     __host__ __device__ friend inline double GPUComplex_imag( const GPUComplex& src) ;
+    
+    //some add function for oiutside access
+    __host__ __device__ friend inline GPUComplex GPUComplex_add(const GPUComplex& a, const GPUComplex& b);
 };
 
 /*
@@ -213,6 +216,17 @@ inline double GPUComplex_real( const GPUComplex& src) {
 inline double GPUComplex_imag( const GPUComplex& src) {
     return src.y;
 }
+
+/*
+ * Add two complex numbers and return result
+ */
+//template<class re, class im>
+inline GPUComplex GPUComplex_add(const GPUComplex& a, const GPUComplex& b)
+ {
+    GPUComplex result(a.x + b.x, a.y + b.y);
+    return result;
+}
+
 
 #endif
 

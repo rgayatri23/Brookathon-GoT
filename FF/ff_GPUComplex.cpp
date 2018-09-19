@@ -1,5 +1,6 @@
-#include "../ComplexClass/GPUComplex.h"
+//#include "../ComplexClass/GPUComplex.h"
 #include "../ComplexClass/cudaAlloc.h"
+#include "kernels.h"
 
 #define CUDA_VER 1
 
@@ -93,10 +94,10 @@ inline void ssxDittt_kernel(int *inv_igp_index, int *indinv, GPUComplex *aqsmtem
             ssxDit = I_eps_array[ifreq*ngpown*ncouls + my_igp*ncouls + ig] * fact1 + \
                                          I_eps_array[(ifreq+1)*ngpown*ncouls + my_igp*ncouls + ig] * fact2;
 
-            ssxDitt += aqsntemp[n1*ncouls + ig] * GPUComplex_conj(aqsmtemp[n1*ncouls + igp]) * ssxDit * vcoul[igp];
+            ssxDitt += aqsntemp[n1*ncouls + ig] * thrust::conj(aqsmtemp[n1*ncouls + igp]) * ssxDit * vcoul[igp];
         }
-        ssxDittt_re += GPUComplex_real(ssxDitt);
-        ssxDittt_im += GPUComplex_imag(ssxDitt);
+        ssxDittt_re += ssxDitt.real();
+        ssxDittt_im += ssxDitt.imag();
     }
     ssxDittt = GPUComplex (ssxDittt_re, ssxDittt_im);
 }
@@ -115,10 +116,10 @@ void achsDtemp_Kernel(int number_bands, int ngpown, int ncouls, int *inv_igp_ind
             GPUComplex schsDtemp(0.00, 0.00);
 
             for(int ig = 0; ig < ncouls; ++ig)
-                schsDtemp = schsDtemp - aqsntemp[n1*ncouls + ig] * GPUComplex_conj(aqsmtemp[n1*ncouls + igp]) * I_epsR_array[1*ngpown*ncouls + my_igp*ncouls + ig]* vcoul[ig] * 0.5;
+                schsDtemp = schsDtemp - aqsntemp[n1*ncouls + ig] * thrust::conj(aqsmtemp[n1*ncouls + igp]) * I_epsR_array[1*ngpown*ncouls + my_igp*ncouls + ig]* vcoul[ig] * 0.5;
 
-            achsDtemp_re += GPUComplex_real(schsDtemp);
-            achsDtemp_im += GPUComplex_imag(schsDtemp);
+            achsDtemp_re += schsDtemp.real();
+            achsDtemp_im += schsDtemp.imag();
         }
     } //n1
     achsDtemp = GPUComplex (achsDtemp_re, achsDtemp_im) ;
@@ -169,7 +170,7 @@ void achDtemp_Kernel(int number_bands, int nvband, int nfreqeval, int ncouls, in
             GPUComplex pref_zb_compl(0.00, pref_zb);
 
             if(flag_occ)
-                cedifft_cor = cedifft_compl * -1 - dFreqBrd[ifreq];
+                cedifft_cor = -cedifft_compl - dFreqBrd[ifreq];
                 else
                     cedifft_cor = cedifft_compl - dFreqBrd[ifreq];
 
@@ -251,19 +252,19 @@ inline void schDttt_corKernel1(GPUComplex &schDttt_cor, int *inv_igp_index, int 
     {
         for(int my_igp = 0; my_igp < ngpown; ++my_igp)
         {
-            for(int ig = igbeg; ig < min(ncouls, igbeg+blkSize); ++ig)
+            for(int ig = igbeg; ig < std::min(ncouls, igbeg+blkSize); ++ig)
             {
                 int indigp = inv_igp_index[my_igp] ;
                 int igp = indinv[indigp];
                 GPUComplex sch2Dt = (I_epsR_array[ifreq*ngpown*ncouls + my_igp*ncouls + ig] - I_epsA_array[ifreq*ngpown*ncouls + my_igp*ncouls + ig]) * fact1 + \
                                             (I_epsR_array[(ifreq+1)*ngpown*ncouls + my_igp*ncouls + ig] - I_epsA_array[(ifreq+1)*ngpown*ncouls + my_igp*ncouls + ig]) * fact2;
-                GPUComplex sch2Dtt = aqsntemp[n1*ncouls + ig] * GPUComplex_conj(aqsmtemp[n1*ncouls + igp]) * sch2Dt * vcoul[igp];
+                GPUComplex sch2Dtt = aqsntemp[n1*ncouls + ig] * thrust::conj(aqsmtemp[n1*ncouls + igp]) * sch2Dt * vcoul[igp];
 
 
-                schDttt_re += GPUComplex_real(sch2Dtt) ;
-                schDttt_im += GPUComplex_imag(sch2Dtt) ;
-                schDttt_cor_re += GPUComplex_real(sch2Dtt) ;
-                schDttt_cor_im += GPUComplex_imag(sch2Dtt) ;
+                schDttt_re += sch2Dtt.real() ;
+                schDttt_im += sch2Dtt.imag() ;
+                schDttt_cor_re += sch2Dtt.real() ;
+                schDttt_cor_im += sch2Dtt.imag() ;
             }
         }
     }
@@ -279,15 +280,15 @@ inline void schDttt_corKernel2(GPUComplex &schDttt_cor, int *inv_igp_index, int 
     {
         for(int my_igp = 0; my_igp < ngpown; ++my_igp)
         {
-            for(int ig = igbeg; ig < min(ncouls, igbeg+blkSize); ++ig)
+            for(int ig = igbeg; ig < std::min(ncouls, igbeg+blkSize); ++ig)
             {
                 int indigp = inv_igp_index[my_igp] ;
                 int igp = indinv[indigp];
                 GPUComplex sch2Dt = ((I_epsR_array[ifreq*ngpown*ncouls + my_igp*ncouls + ig] - I_epsA_array[ifreq*ncouls*ngpown + my_igp*ncouls + ig]) * fact1 + \
                                             (I_epsR_array[(ifreq+1)*ngpown*ncouls + my_igp*ncouls + ig] - I_epsA_array[(ifreq+1)*ngpown*ncouls + my_igp*ncouls + ig]) * fact2) * -0.5;
-                GPUComplex sch2Dtt = aqsntemp[n1*ncouls + ig] * GPUComplex_conj(aqsmtemp[n1*ncouls + igp]) * sch2Dt * vcoul[igp];
-                schDttt_cor_re += GPUComplex_real(sch2Dtt) ;
-                schDttt_cor_im += GPUComplex_imag(sch2Dtt) ;
+                GPUComplex sch2Dtt = aqsntemp[n1*ncouls + ig] * thrust::conj(aqsmtemp[n1*ncouls + igp]) * sch2Dt * vcoul[igp];
+                schDttt_cor_re += sch2Dtt.real() ;
+                schDttt_cor_im += sch2Dtt.imag() ;
             }
         }
     }
@@ -299,8 +300,8 @@ int main(int argc, char** argv)
 
     if(argc != 7)
     {
-        cout << "Incorrect Parameters!!! The correct form is " << endl;
-        cout << "./a.out number_bands nvband ncouls ngpown nFreq nfreqeval " << endl;
+        std::cout << "Incorrect Parameters!!! The correct form is " << std::endl;
+        std::cout << "./a.out number_bands nvband ncouls ngpown nFreq nfreqeval " << std::endl;
         exit(0);
     }
 
@@ -314,8 +315,8 @@ int main(int argc, char** argv)
 
     if(ngpown > ncouls)
     {
-        cout << "Incorrect Parameters!!! ngpown cannot be greater than ncouls. The correct form is " << endl;
-        cout << "./a.out number_bands nvband ncouls ngpown nFreq nfreqeval " << endl;
+        std::cout << "Incorrect Parameters!!! ngpown cannot be greater than ncouls. The correct form is " << std::endl;
+        std::cout << "./a.out number_bands nvband ncouls ngpown nFreq nfreqeval " << std::endl;
         exit(0);
     }
 
@@ -329,17 +330,17 @@ int main(int argc, char** argv)
     gettimeofday(&start_preKernel, NULL);
 
 #if CUDA_VER
-    cout << "Cuda Version" << endl;
+    std::cout << "Cuda Version" << std::endl;
 #else
-    cout << "Seq Version" << endl;
+    std::cout << "Seq Version" << std::endl;
 #endif
 
-    cout << "number_bands = " << number_bands << \
+    std::cout << "number_bands = " << number_bands << \
         "\n nvband = " << nvband << \
         "\n ncouls = " << ncouls << \
         "\n ngpown = " << ngpown << \
         "\n nFreq = " << nFreq << \
-        "\n nfreqeval = " << nfreqeval << endl;
+        "\n nfreqeval = " << nfreqeval << std::endl;
 
     GPUComplex expr0( 0.0 , 0.0);
     GPUComplex expr( 0.5 , 0.5);
@@ -523,9 +524,9 @@ int main(int argc, char** argv)
 
     gettimeofday(&end_preKernel, NULL);
     double elapsed_preKernel = elapsedTime(start_preKernel, end_preKernel);
-    cout << "pre kernel time taken = " << elapsed_preKernel << " secs" << endl;
+    std::cout << "pre kernel time taken = " << elapsed_preKernel << " secs" << std::endl;
 
-    cout << "starting Kernels" << endl;
+    std::cout << "starting Kernels" << std::endl;
     gettimeofday(&startTimer_Kernel, NULL);
 
     /***********achsDtemp Kernel ****************/
@@ -589,17 +590,18 @@ int main(int argc, char** argv)
     double elapsed_achDtemp_cor = elapsedTime(start_achDtemp_cor_Kernel, end_achDtemp_cor_Kernel);
     double elapsedTimer_Kernel = elapsedTime(startTimer_Kernel, endTimer_Kernel);
 
-    cout << "achsDtemp = " ;
-    achsDtemp.print();
-    cout << "asxDtemp = " ;
-    asxDtemp[0].print();
-    cout << "achDtemp_cor = " ;
-    achDtemp_cor[0].print();
+    std::cout.precision(8);
+    std::cout << "achsDtemp = (" << achsDtemp.real() << ", " << achsDtemp.imag() << ")" << std::endl;
+    //achsDtemp.print();
+    std::cout << "asxDtemp[0] = (" << asxDtemp[0].real() << ", " << asxDtemp[0].imag() << ")" << std::endl;
+    //asxDtemp[0].print();
+    std::cout << "achDtemp_cor[0] = (" << achDtemp_cor[0].real() << ", " << achDtemp_cor[0].imag() << ")" << std::endl;
+    //achDtemp_cor[0].print();
 
-    cout << "********** achsDtemp Time Taken **********= " << elapsed_achsDtemp << " secs" << endl;
-    cout << "********** asxDtemp Time Taken **********= " << elapsed_asxDtemp << " secs" << endl;
-    cout << "********** achDtemp_cor Time Taken **********= " << elapsed_achDtemp_cor << " secs" << endl;
-    cout << "********** Kernel Time Taken **********= " << elapsedTimer_Kernel << " secs" << endl;
+    std::cout << "********** achsDtemp Time Taken **********= " << elapsed_achsDtemp << " secs" << std::endl;
+    std::cout << "********** asxDtemp Time Taken **********= " << elapsed_asxDtemp << " secs" << std::endl;
+    std::cout << "********** achDtemp_cor Time Taken **********= " << elapsed_achDtemp_cor << " secs" << std::endl;
+    std::cout << "********** Kernel Time Taken **********= " << elapsedTimer_Kernel << " secs" << std::endl;
 
 #if CUDA_VER
     //Free Device Memory

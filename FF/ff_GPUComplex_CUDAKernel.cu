@@ -1,6 +1,9 @@
-#include "../ComplexClass/GPUComplex.h"
+//#include "../ComplexClass/GPUComplex.h"
+#include <thrust/complex.h>
 #include "../ComplexClass/cudaAlloc.h"
 #include "cub/cub.cuh"
+
+using GPUComplex = thrust::complex<double>;
 
 #define __Kernel_2D 1
 
@@ -85,10 +88,10 @@ __device__ void d_ssxDittt_kernel(int *inv_igp_index, int *indinv, GPUComplex *a
             GPUComplex ssxDit = I_eps_array[ifreq*ngpown*ncouls + my_igp*ncouls + ig] * fact1 + \
                                          I_eps_array[(ifreq+1)*ngpown*ncouls + my_igp*ncouls + ig] * fact2;
 
-            ssxDitt += aqsntemp[n1*ncouls + ig] * GPUComplex_conj(aqsmtemp[n1*ncouls + igp]) * ssxDit * vcoul[igp];
+            ssxDitt += aqsntemp[n1*ncouls + ig] * thrust::conj(aqsmtemp[n1*ncouls + igp]) * ssxDit * vcoul[igp];
         }
-        ssxDittt_re_loc += GPUComplex_real(ssxDitt);
-        ssxDittt_im_loc += GPUComplex_imag(ssxDitt);
+        ssxDittt_re_loc += ssxDitt.real();
+        ssxDittt_im_loc += ssxDitt.imag();
     }
     if(leftOverngpown)
     {
@@ -104,10 +107,10 @@ __device__ void d_ssxDittt_kernel(int *inv_igp_index, int *indinv, GPUComplex *a
                 GPUComplex ssxDit = I_eps_array[ifreq*ngpown*ncouls + my_igp*ncouls + ig] * fact1 + \
                                              I_eps_array[(ifreq+1)*ngpown*ncouls + my_igp*ncouls + ig] * fact2;
 
-                ssxDitt += aqsntemp[n1*ncouls + ig] * GPUComplex_conj(aqsmtemp[n1*ncouls + igp]) * ssxDit * vcoul[igp];
+                ssxDitt += aqsntemp[n1*ncouls + ig] * thrust::conj(aqsmtemp[n1*ncouls + igp]) * ssxDit * vcoul[igp];
             }
-            ssxDittt_re_loc += GPUComplex_real(ssxDitt);
-            ssxDittt_im_loc += GPUComplex_imag(ssxDitt);
+            ssxDittt_re_loc += ssxDitt.real();
+            ssxDittt_im_loc += ssxDitt.imag();
         }
     }
     atomicAdd2(&ssxDittt_re, ssxDittt_re_loc);
@@ -139,13 +142,13 @@ __device__ void d_schDttt_corKernel1(GPUComplex &schDttt_cor, int *inv_igp_index
             {
                 GPUComplex sch2Dt = (I_epsR_array[ifreq*ngpown*ncouls + my_igp*ncouls + ig] - I_epsA_array[ifreq*ngpown*ncouls + my_igp*ncouls + ig]) * fact1 + \
                                             (I_epsR_array[(ifreq+1)*ngpown*ncouls + my_igp*ncouls + ig] - I_epsA_array[(ifreq+1)*ngpown*ncouls + my_igp*ncouls + ig]) * fact2;
-                GPUComplex sch2Dtt = aqsntemp[n1*ncouls + ig] * GPUComplex_conj(aqsmtemp[n1*ncouls + igp]) * sch2Dt * vcoul[igp];
+                GPUComplex sch2Dtt = aqsntemp[n1*ncouls + ig] * thrust::conj(aqsmtemp[n1*ncouls + igp]) * sch2Dt * vcoul[igp];
 
 
-                schDttt_re += GPUComplex_real(sch2Dtt) ;
-                schDttt_im += GPUComplex_imag(sch2Dtt) ;
-                schDttt_cor_re_loc += GPUComplex_real(sch2Dtt) ;
-                schDttt_cor_im_loc += GPUComplex_imag(sch2Dtt) ;
+                schDttt_re += sch2Dtt.real() ;
+                schDttt_im += sch2Dtt.imag() ;
+                schDttt_cor_re_loc += sch2Dtt.real() ;
+                schDttt_cor_im_loc += sch2Dtt.imag() ;
             }
             atomicAdd2(&schDttt_cor_re, schDttt_cor_re_loc);
             atomicAdd2(&schDttt_cor_im, schDttt_cor_im_loc);
@@ -163,13 +166,13 @@ __device__ void d_schDttt_corKernel1(GPUComplex &schDttt_cor, int *inv_igp_index
             {
                 GPUComplex sch2Dt = (I_epsR_array[ifreq*ngpown*ncouls + my_igp*ncouls + ig] - I_epsA_array[ifreq*ngpown*ncouls + my_igp*ncouls + ig]) * fact1 + \
                                             (I_epsR_array[(ifreq+1)*ngpown*ncouls + my_igp*ncouls + ig] - I_epsA_array[(ifreq+1)*ngpown*ncouls + my_igp*ncouls + ig]) * fact2;
-                GPUComplex sch2Dtt = aqsntemp[n1*ncouls + ig] * GPUComplex_conj(aqsmtemp[n1*ncouls + igp]) * sch2Dt * vcoul[igp];
+                GPUComplex sch2Dtt = aqsntemp[n1*ncouls + ig] * thrust::conj(aqsmtemp[n1*ncouls + igp]) * sch2Dt * vcoul[igp];
 
 
-                schDttt_re += GPUComplex_real(sch2Dtt) ;
-                schDttt_im += GPUComplex_imag(sch2Dtt) ;
-                schDttt_cor_re += GPUComplex_real(sch2Dtt) ;
-                schDttt_cor_im += GPUComplex_imag(sch2Dtt) ;
+                schDttt_re += sch2Dtt.real() ;
+                schDttt_im += sch2Dtt.imag() ;
+                schDttt_cor_re += sch2Dtt.real() ;
+                schDttt_cor_im += sch2Dtt.imag() ;
             }
             atomicAdd2(&schDttt_cor_re, schDttt_cor_re_loc);
             atomicAdd2(&schDttt_cor_im, schDttt_cor_im_loc);
@@ -203,9 +206,9 @@ __device__ void d_schDttt_corKernel2(GPUComplex &schDttt_cor, int *inv_igp_index
             {
                 GPUComplex sch2Dt = ((I_epsR_array[ifreq*ngpown*ncouls + my_igp*ncouls + ig] - I_epsA_array[ifreq*ncouls*ngpown + my_igp*ncouls + ig]) * fact1 + \
                                             (I_epsR_array[(ifreq+1)*ngpown*ncouls + my_igp*ncouls + ig] - I_epsA_array[(ifreq+1)*ngpown*ncouls + my_igp*ncouls + ig]) * fact2) * -0.5;
-                GPUComplex sch2Dtt = aqsntemp[n1*ncouls + ig] * GPUComplex_conj(aqsmtemp[n1*ncouls + igp]) * sch2Dt * vcoul[igp];
-                schDttt_cor_re_loc += GPUComplex_real(sch2Dtt) ;
-                schDttt_cor_im_loc += GPUComplex_imag(sch2Dtt) ;
+                GPUComplex sch2Dtt = aqsntemp[n1*ncouls + ig] * thrust::conj(aqsmtemp[n1*ncouls + igp]) * sch2Dt * vcoul[igp];
+                schDttt_cor_re_loc += sch2Dtt.real() ;
+                schDttt_cor_im_loc += sch2Dtt.imag() ;
             }
 
         }
@@ -221,9 +224,9 @@ __device__ void d_schDttt_corKernel2(GPUComplex &schDttt_cor, int *inv_igp_index
             {
                 GPUComplex sch2Dt = ((I_epsR_array[ifreq*ngpown*ncouls + my_igp*ncouls + ig] - I_epsA_array[ifreq*ncouls*ngpown + my_igp*ncouls + ig]) * fact1 + \
                                             (I_epsR_array[(ifreq+1)*ngpown*ncouls + my_igp*ncouls + ig] - I_epsA_array[(ifreq+1)*ngpown*ncouls + my_igp*ncouls + ig]) * fact2) * -0.5;
-                GPUComplex sch2Dtt = aqsntemp[n1*ncouls + ig] * GPUComplex_conj(aqsmtemp[n1*ncouls + igp]) * sch2Dt * vcoul[igp];
-                schDttt_cor_re_loc += GPUComplex_real(sch2Dtt) ;
-                schDttt_cor_im_loc += GPUComplex_imag(sch2Dtt) ;
+                GPUComplex sch2Dtt = aqsntemp[n1*ncouls + ig] * thrust::conj(aqsmtemp[n1*ncouls + igp]) * sch2Dt * vcoul[igp];
+                schDttt_cor_re_loc += sch2Dtt.real() ;
+                schDttt_cor_im_loc += sch2Dtt.imag() ;
             }
 
         }
@@ -258,12 +261,12 @@ __device__ void d_schDttt_corKernel2(GPUComplex &schDttt_cor, int *inv_igp_index
 //        int indigp = inv_igp_index[my_igp];
 //        int igp = indinv[indigp];
 //        
-//        schsDtemp = schsDtemp - aqsntemp[n1*ncouls + ig] * GPUComplex_conj(aqsmtemp[n1*ncouls + igp]) * I_epsR_array[1*ngpown*ncouls + my_igp*ncouls + ig]* vcoul[ig] * 0.5;
+//        schsDtemp = schsDtemp - aqsntemp[n1*ncouls + ig] * thrust::conj(aqsmtemp[n1*ncouls + igp]) * I_epsR_array[1*ngpown*ncouls + my_igp*ncouls + ig]* vcoul[ig] * 0.5;
 //        
-//        schsDtemp_red_re = BlockReduce(temp_storage).Sum(GPUComplex_real(schsDtemp));
-//        schsDtemp_red_im = BlockReduce(temp_storage).Sum(GPUComplex_imag(schsDtemp));
-//        //atomicAdd2(&schsDtemp_block_re, GPUComplex_real(schsDtemp));
-//        //atomicAdd2(&schsDtemp_block_im, GPUComplex_imag(schsDtemp));
+//        schsDtemp_red_re = BlockReduce(temp_storage).Sum(GPUComplex::real(schsDtemp));
+//        schsDtemp_red_im = BlockReduce(temp_storage).Sum(GPUComplex::imag(schsDtemp));
+//        //atomicAdd2(&schsDtemp_block_re, GPUComplex::real(schsDtemp));
+//        //atomicAdd2(&schsDtemp_block_im, GPUComplex::imag(schsDtemp));
 //        //__syncthreads();
 //        //
 //        if(threadIdx.x==0 && threadIdx.y==0){
@@ -278,42 +281,46 @@ __device__ void d_schDttt_corKernel2(GPUComplex &schDttt_cor, int *inv_igp_index
 __global__ void achsDtemp_solver_2D_v2(int number_bands, int ngpown, int ncouls, int *inv_igp_index, int *indinv, GPUComplex *aqsntemp, GPUComplex *aqsmtemp, GPUComplex *I_epsR_array, double *vcoul, double *achsDtemp_re, double *achsDtemp_im)
 {
     //prepare redcution
-    typedef cub::BlockReduce<double, 128, cub::BLOCK_REDUCE_WARP_REDUCTIONS, 4> BlockReduce;
+    //typedef cub::BlockReduce<double, 128, cub::BLOCK_REDUCE_WARP_REDUCTIONS, 1> BlockReduce;
+    typedef cub::BlockReduce<GPUComplex, 128, cub::BLOCK_REDUCE_WARP_REDUCTIONS, 1> BlockReduce;
     
     GPUComplex schsDtemp(0.00, 0.00);
     
-    const int iny = blockIdx.y * blockDim.y + threadIdx.y;
-    const int inx = blockIdx.x * blockDim.x + threadIdx.x;
+    const int n1 = blockIdx.y * blockDim.y + threadIdx.y;
+    const int ig = blockIdx.x * blockDim.x + threadIdx.x;
     //__shared__ double schsDtemp_block_re, schsDtemp_block_im;
-    double schsDtemp_red_re, schsDtemp_red_im;
+    GPUComplex schsDtemp_red;
+    //double schsDtemp_red_re, schsDtemp_red_im;
     __shared__ typename BlockReduce::TempStorage temp_storage;
     
     //schsDtemp_block_re = 0.;
     //schsDtemp_block_im = 0.;
     //__syncthreads();
     
-    if( iny < number_bands && inx < ncouls*ngpown ){
-        //extract indices
-        int n1 = iny;
-        int ig = inx % ncouls;
-        int my_igp = inx / ncouls;
-        //do indirect access
-        int indigp = inv_igp_index[my_igp];
-        int igp = indinv[indigp];
+    if( n1 < number_bands && ig < ncouls ){
         
-        schsDtemp = schsDtemp - aqsntemp[n1*ncouls + ig] * GPUComplex_conj(aqsmtemp[n1*ncouls + igp]) * I_epsR_array[1*ngpown*ncouls + my_igp*ncouls + ig]* vcoul[ig] * 0.5;
+        for(int my_igp = 0; my_igp < ngpown; ++my_igp){
+            //do indirect access
+            int indigp = inv_igp_index[my_igp];
+            int igp = indinv[indigp];
         
-        schsDtemp_red_re = BlockReduce(temp_storage).Sum(GPUComplex_real(schsDtemp));
-        schsDtemp_red_im = BlockReduce(temp_storage).Sum(GPUComplex_imag(schsDtemp));
-        //atomicAdd2(achsDtemp_re, GPUComplex_real(schsDtemp));
-        //atomicAdd2(achsDtemp_im, GPUComplex_imag(schsDtemp));
+            schsDtemp = schsDtemp - aqsntemp[n1*ncouls + ig] * thrust::conj(aqsmtemp[n1*ncouls + igp]) * I_epsR_array[1*ngpown*ncouls + my_igp*ncouls + ig]* vcoul[ig] * 0.5;
+        }
+        
+        schsDtemp_red = BlockReduce(temp_storage).Sum(schsDtemp);
+        //schsDtemp_red_re = BlockReduce(temp_storage).Sum(GPUComplex::real(schsDtemp));
+        //schsDtemp_red_im = BlockReduce(temp_storage).Sum(GPUComplex::imag(schsDtemp));
+        //atomicAdd2(achsDtemp_re, GPUComplex::real(schsDtemp));
+        //atomicAdd2(achsDtemp_im, GPUComplex::imag(schsDtemp));
         //__syncthreads();
         
         if(threadIdx.x==0 && threadIdx.y==0){
             //atomicAdd2(achsDtemp_re, schsDtemp_block_re);
             //atomicAdd2(achsDtemp_im, schsDtemp_block_im);
-            atomicAdd2(achsDtemp_re, schsDtemp_red_re);
-            atomicAdd2(achsDtemp_im, schsDtemp_red_im);
+            //atomicAdd2(achsDtemp_re, schsDtemp_red_re);
+            //atomicAdd2(achsDtemp_im, schsDtemp_red_im);
+            atomicAdd2(achsDtemp_re, schsDtemp_red.real());
+            atomicAdd2(achsDtemp_im, schsDtemp_red.imag());
         }
     }
 }
@@ -331,12 +338,12 @@ __global__ void achsDtemp_solver_1D(int number_bands, int ngpown, int ncouls, in
     }
     for( int x = 0; x < loopOverngpown && threadIdx.x < blockDim.x ; ++x)
     {
-        const int my_igp = x*blockDim.x + threadIdx.x;
+        const int my_igp = x * blockDim.x + threadIdx.x;
         int indigp = inv_igp_index[my_igp];
         int igp = indinv[indigp];
 
         for(int ig = 0; ig < ncouls; ++ig)
-            schsDtemp = schsDtemp - aqsntemp[n1*ncouls + ig] * GPUComplex_conj(aqsmtemp[n1*ncouls + igp]) * I_epsR_array[1*ngpown*ncouls + my_igp*ncouls + ig]* vcoul[ig] * 0.5;
+            schsDtemp = schsDtemp - aqsntemp[n1*ncouls + ig] * thrust::conj(aqsmtemp[n1*ncouls + igp]) * I_epsR_array[1*ngpown*ncouls + my_igp*ncouls + ig]* vcoul[ig] * 0.5;
     }
     if(leftOverngpown)
     {
@@ -347,12 +354,12 @@ __global__ void achsDtemp_solver_1D(int number_bands, int ngpown, int ncouls, in
             int igp = indinv[indigp];
 
             for(int ig = 0; ig < ncouls; ++ig)
-                schsDtemp = schsDtemp - aqsntemp[n1*ncouls + ig] * GPUComplex_conj(aqsmtemp[n1*ncouls + igp]) * I_epsR_array[1*ngpown*ncouls + my_igp*ncouls + ig]* vcoul[ig] * 0.5;
+                schsDtemp = schsDtemp - aqsntemp[n1*ncouls + ig] * thrust::conj(aqsmtemp[n1*ncouls + igp]) * I_epsR_array[1*ngpown*ncouls + my_igp*ncouls + ig]* vcoul[ig] * 0.5;
         }
     }
 
-    atomicAdd2(achsDtemp_re, GPUComplex_real(schsDtemp));
-    atomicAdd2(achsDtemp_im, GPUComplex_imag(schsDtemp));
+    atomicAdd2(achsDtemp_re, schsDtemp.real());
+    atomicAdd2(achsDtemp_im, schsDtemp.imag());
 }
 
 __global__ void asxDtemp_solver_2D(int nvband, int nfreqeval, int ncouls, int ngpown, int nFreq, double freqevalmin, double freqevalstep, double occ, double *ekq, double *dFreqGrid, int *inv_igp_index, int *indinv, GPUComplex *aqsmtemp, GPUComplex *aqsntemp, double *vcoul, GPUComplex *I_epsR_array, GPUComplex *I_epsA_array, double *asxDtemp_re, double *asxDtemp_im)
@@ -373,8 +380,8 @@ __global__ void asxDtemp_solver_2D(int nvband, int nfreqeval, int ncouls, int ng
 
     if(threadIdx.x == 0)
     {
-        atomicAdd2(&asxDtemp_re[iw], GPUComplex_real(ssxDittt * occ));
-        atomicAdd2(&asxDtemp_im[iw], GPUComplex_imag(ssxDittt * occ));
+        atomicAdd2(&asxDtemp_re[iw], (ssxDittt * occ).real());
+        atomicAdd2(&asxDtemp_im[iw], (ssxDittt * occ).imag());
     }
 }
 
@@ -405,8 +412,8 @@ __global__ void asxDtemp_solver_1D(int nvband, int nfreqeval, int ncouls, int ng
                     d_ssxDittt_kernel(inv_igp_index, indinv, aqsmtemp, aqsntemp, vcoul, I_epsR_array, ssxDittt, ngpown, ncouls, n1, ifreq, fact1, fact2);
                 else
                     d_ssxDittt_kernel(inv_igp_index, indinv, aqsmtemp, aqsntemp, vcoul, I_epsA_array, ssxDittt, ngpown, ncouls, n1, ifreq, fact1, fact2);
-                atomicAdd2(&asxDtemp_re[iw], GPUComplex_real(ssxDittt * occ));
-                atomicAdd2(&asxDtemp_im[iw], GPUComplex_imag(ssxDittt * occ));
+                atomicAdd2(&asxDtemp_re[iw], (ssxDittt * occ).real());
+                atomicAdd2(&asxDtemp_im[iw], (ssxDittt * occ).imag());
             }
         }
         if(leftOvernfreqeval)
@@ -425,8 +432,8 @@ __global__ void asxDtemp_solver_1D(int nvband, int nfreqeval, int ncouls, int ng
                     d_ssxDittt_kernel(inv_igp_index, indinv, aqsmtemp, aqsntemp, vcoul, I_epsR_array, ssxDittt, ngpown, ncouls, n1, ifreq, fact1, fact2);
                 else
                     d_ssxDittt_kernel(inv_igp_index, indinv, aqsmtemp, aqsntemp, vcoul, I_epsA_array, ssxDittt, ngpown, ncouls, n1, ifreq, fact1, fact2);
-                atomicAdd2(&asxDtemp_re[iw], GPUComplex_real(ssxDittt * occ));
-                atomicAdd2(&asxDtemp_im[iw], GPUComplex_imag(ssxDittt * occ));
+                atomicAdd2(&asxDtemp_re[iw], (ssxDittt * occ).real());
+                atomicAdd2(&asxDtemp_im[iw], (ssxDittt * occ).imag());
             }
         }
     }
@@ -461,8 +468,8 @@ __global__ void achDtemp_cor_solver_2D(int number_bands, int nvband, int nfreqev
 //Summing up at the end of iw loop by just the master thread
         if(threadIdx.x == 0)
         {
-            atomicAdd2(&achDtemp_cor_re[iw], GPUComplex_real(schDi_cor));
-            atomicAdd2(&achDtemp_cor_im[iw], GPUComplex_imag(schDi_cor));
+            atomicAdd2(&achDtemp_cor_re[iw], schDi_cor.real());
+            atomicAdd2(&achDtemp_cor_im[iw], schDi_cor.imag());
         }
     } //n1
 }
@@ -501,8 +508,8 @@ __global__ void achDtemp_cor_solver_1D(int number_bands, int nvband, int nfreqev
             else if(flag_occ)
                 d_schDttt_corKernel2(schDi_cor, inv_igp_index, indinv, I_epsR_array, I_epsA_array, aqsmtemp, aqsntemp, vcoul,  ncouls, ifreq, ngpown, n1, fact1, fact2, iw);
 
-            atomicAdd2(&achDtemp_cor_re[iw], GPUComplex_real(schDi_cor));
-            atomicAdd2(&achDtemp_cor_im[iw], GPUComplex_imag(schDi_cor));
+            atomicAdd2(&achDtemp_cor_re[iw], schDi_cor.real());
+            atomicAdd2(&achDtemp_cor_im[iw], schDi_cor.imag());
 
         }
         if(leftOvernfreqeval)
@@ -528,8 +535,8 @@ __global__ void achDtemp_cor_solver_1D(int number_bands, int nvband, int nfreqev
             else if(flag_occ)
                 d_schDttt_corKernel2(schDi_cor, inv_igp_index, indinv, I_epsR_array, I_epsA_array, aqsmtemp, aqsntemp, vcoul,  ncouls, ifreq, ngpown, n1, fact1, fact2, iw);
 
-            atomicAdd2(&achDtemp_cor_re[iw], GPUComplex_real(schDi_cor));
-            atomicAdd2(&achDtemp_cor_im[iw], GPUComplex_imag(schDi_cor));
+            atomicAdd2(&achDtemp_cor_re[iw], schDi_cor.real());
+            atomicAdd2(&achDtemp_cor_im[iw], schDi_cor.imag());
 
         }
 
@@ -554,8 +561,8 @@ void d_achsDtemp_Kernel(int number_bands, int ngpown, int ncouls, int *inv_igp_i
 //    gpuErrchk(cudaPeekAtLastError());
 #if defined(__Kernel_2D)
     //int numThreadsPerBlock=32;
-    dim3 numThreads(128, 4);
-    dim3 numBlocks( int(ceil(size_t(ncouls)*size_t(ngpown)/double(numThreads.x))), int(ceil(size_t(number_bands)/double(numThreads.y))) );
+    dim3 numThreads(128, 1);
+    dim3 numBlocks( int(ceil(size_t(ncouls)/double(numThreads.x))), int(ceil(size_t(number_bands)/double(numThreads.y))) );
 //    dim3 numBlocks(number_bands, ngpown);
     
     std::cout << "numBlocks(" << numBlocks.x << "," << numBlocks.y << ")" << " numThreads(" << numThreads.x << "," << numThreads.y << ")" << std::endl;
