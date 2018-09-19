@@ -266,38 +266,25 @@ __device__ void d_schDttt_corKernel2(GPUComplex &schDttt_cor, int *inv_igp_index
 __global__ void achsDtemp_solver_1D(int number_bands, int ngpown, int ncouls, int *inv_igp_index, int *indinv, GPUComplex *aqsntemp, GPUComplex *aqsmtemp, GPUComplex *I_epsR_array, double *vcoul, double *achsDtemp_re, double *achsDtemp_im)
 {
     const int n1 = blockIdx.x;
-    GPUComplex schsDtemp(0.00, 0.00);
+        int numBlk = (ncouls+blockDim.x-1)/blockDim.x;
 
-    int loopOverngpown = 1, leftOverngpown = 0;
-    if(ngpown > blockDim.x)
-    {
-        loopOverngpown = ngpown / blockDim.x;
-        leftOverngpown = ngpown % blockDim.x;
-    }
-    for( int x = 0; x < loopOverngpown && threadIdx.x < blockDim.x ; ++x)
-    {
-        const int my_igp = x * blockDim.x + threadIdx.x;
-        int indigp = inv_igp_index[my_igp];
-        int igp = indinv[indigp];
+        GPUComplex schsDtemp(0.00, 0.00);
 
-        for(int ig = 0; ig < ncouls; ++ig)
-            schsDtemp = schsDtemp - aqsntemp[n1*ncouls + ig] * thrust::conj(aqsmtemp[n1*ncouls + igp]) * I_epsR_array[1*ngpown*ncouls + my_igp*ncouls + ig]* vcoul[ig] * 0.5;
-    }
-    if(leftOverngpown)
-    {
-        const int my_igp = loopOverngpown*blockDim.x + threadIdx.x;
-        if(my_igp < ngpown)
-        {
-            int indigp = inv_igp_index[my_igp];
-            int igp = indinv[indigp];
+            for(int my_igp = 0; my_igp < ngpown; ++my_igp)
+            {
+                int indigp = inv_igp_index[my_igp];          
+                int igp = indinv[indigp];
 
-            for(int ig = 0; ig < ncouls; ++ig)
-                schsDtemp = schsDtemp - aqsntemp[n1*ncouls + ig] * thrust::conj(aqsmtemp[n1*ncouls + igp]) * I_epsR_array[1*ngpown*ncouls + my_igp*ncouls + ig]* vcoul[ig] * 0.5;
-        }
-    }
+                for(int blk = 0; blk < numBlk; blk++)
+                {
+                int ig = blk * blockDim.x + threadIdx.x;
+                if (ig< ncouls)
+                schsDtemp = schsDtemp - aqsntemp[n1*ncouls + ig] * GPUComplex_conj(aqsmtemp[n1*ncouls + igp]) * I_epsR_array[1*ngpown*ncouls + my_igp*ncouls + ig]* vcoul[ig] * 0.5;
+                }
+            }
 
-    atomicAdd2(achsDtemp_re, schsDtemp.real());
-    atomicAdd2(achsDtemp_im, schsDtemp.imag());
+        atomicAdd2(achsDtemp_re, GPUComplex_real(schsDtemp));
+        atomicAdd2(achsDtemp_im, GPUComplex_imag(schsDtemp));
 }
 
 __global__ void asxDtemp_solver_2D(int nvband, int nfreqeval, int ncouls, int ngpown, int nFreq, double freqevalmin, double freqevalstep, double occ, double *ekq, double *dFreqGrid, int *inv_igp_index, int *indinv, GPUComplex *aqsmtemp, GPUComplex *aqsntemp, double *vcoul, GPUComplex *I_epsR_array, GPUComplex *I_epsA_array, double *asxDtemp_re, double *asxDtemp_im)
