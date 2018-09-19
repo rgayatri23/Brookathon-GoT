@@ -4,5 +4,8 @@
 
 typedef float REAL;
 //typedef double REAL;
+using GPUComplexD = thrust::complex<double>;
+using GPUComplexF = thrust::complex<float>;
 using GPUComplex = thrust::complex<REAL>;
+
 #endif

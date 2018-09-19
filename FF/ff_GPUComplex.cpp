@@ -323,6 +323,7 @@ int main(int argc, char** argv)
 
     timeval startTimer_Kernel, endTimer_Kernel, \
         start_achsDtemp_Kernel, end_achsDtemp_Kernel, \
+        start_achsDtemp_mixed_Kernel, end_achsDtemp_mixed_Kernel, \
         start_asxDtemp_Kernel, end_asxDtemp_Kernel, \
         start_achDtemp_Kernel, end_achDtemp_Kernel,
         start_achDtemp_cor_Kernel, end_achDtemp_cor_Kernel, \
@@ -397,12 +398,15 @@ int main(int argc, char** argv)
 #if CUDA_VER
     REAL *achsDtemp_re = new REAL;
     REAL *achsDtemp_im = new REAL;
+    double *achsDtemp_reD = new double;
+    double *achsDtemp_imD = new double;
     //Allocated Memory on Device
     GPUComplex *d_aqsmtemp, *d_aqsntemp, \
         *d_I_epsR_array, *d_I_epsA_array, *d_schDt_matrix, \
         *d_achsDtemp, *d_ach2Dtemp , *d_achDtemp_corb;
 
     int *d_inv_igp_index, *d_indinv;
+    double *d_achsDtemp_reD, *d_achsDtemp_imD;
     REAL *d_vcoul, *d_dFreqGrid, *d_achsDtemp_re, *d_achsDtemp_im, \
         *d_ekq, *d_asxDtemp_re, *d_asxDtemp_im, *d_achDtemp_cor_re, *d_achDtemp_cor_im;
 
@@ -425,6 +429,8 @@ int main(int argc, char** argv)
     CudaSafeCall(cudaMallocManaged((void**) &d_achsDtemp, sizeof(GPUComplex)));
     CudaSafeCall(cudaMallocManaged((void**) &d_achsDtemp_re, sizeof(REAL)));
     CudaSafeCall(cudaMallocManaged((void**) &d_achsDtemp_im, sizeof(REAL)));
+    CudaSafeCall(cudaMallocManaged((void**) &d_achsDtemp_reD, sizeof(double)));
+    CudaSafeCall(cudaMallocManaged((void**) &d_achsDtemp_imD, sizeof(double)));
     CudaSafeCall(cudaMallocManaged((void**) &d_asxDtemp_re, nfreqeval*sizeof(REAL)));
     CudaSafeCall(cudaMallocManaged((void**) &d_asxDtemp_im, nfreqeval*sizeof(REAL)));
 
@@ -541,6 +547,18 @@ int main(int argc, char** argv)
     CudaSafeCall(cudaMemcpy(achsDtemp_re, d_achsDtemp_re, sizeof(REAL), cudaMemcpyDeviceToHost));
 #endif
     gettimeofday(&end_achsDtemp_Kernel, NULL);
+    
+    /***********achsDtemp_mixed Kernel ****************/
+    gettimeofday(&start_achsDtemp_mixed_Kernel, NULL);
+#if !CUDA_VER
+    GPUComplexD achsDtempD(0.00, 0.00);
+    achsDtemp_mixed_Kernel(number_bands, ngpown, ncouls, inv_igp_index, indinv, aqsntemp, aqsmtemp, I_epsR_array, vcoul, achsDtempD);
+#else
+    d_achsDtemp_mixed_Kernel(number_bands, ngpown, ncouls, d_inv_igp_index, d_indinv, d_aqsntemp, d_aqsmtemp, d_I_epsR_array, d_vcoul, d_achsDtemp_reD, d_achsDtemp_imD);
+    cudaDeviceSynchronize();
+    CudaSafeCall(cudaMemcpy(achsDtemp_reD, d_achsDtemp_reD, sizeof(double), cudaMemcpyDeviceToHost));
+#endif
+    gettimeofday(&end_achsDtemp_mixed_Kernel, NULL);
 
     /***********asxDtemp Kernel ****************/
     gettimeofday(&start_asxDtemp_Kernel, NULL);
@@ -568,13 +586,21 @@ int main(int argc, char** argv)
 
 #if CUDA_VER
 //    cudaDeviceSynchronize();
+    //achsDtemp
     CudaSafeCall(cudaMemcpy(achsDtemp_re, d_achsDtemp_re, sizeof(REAL), cudaMemcpyDeviceToHost));
     CudaSafeCall(cudaMemcpy(achsDtemp_im, d_achsDtemp_im, sizeof(REAL), cudaMemcpyDeviceToHost));
     GPUComplex achsDtemp(*achsDtemp_re, *achsDtemp_im);
+    
+    //achsDtemp_mixed
+    CudaSafeCall(cudaMemcpy(achsDtemp_reD, d_achsDtemp_reD, sizeof(double), cudaMemcpyDeviceToHost));
+    CudaSafeCall(cudaMemcpy(achsDtemp_imD, d_achsDtemp_imD, sizeof(double), cudaMemcpyDeviceToHost));
+    GPUComplexD achsDtempD(*achsDtemp_reD, *achsDtemp_imD);
 
+    //asxDtemp
     CudaSafeCall(cudaMemcpy(asxDtemp_re, d_asxDtemp_re, nfreqeval*sizeof(REAL), cudaMemcpyDeviceToHost));
     CudaSafeCall(cudaMemcpy(asxDtemp_im, d_asxDtemp_im, nfreqeval*sizeof(REAL), cudaMemcpyDeviceToHost));
 
+    //achDtemp_cor
     CudaSafeCall(cudaMemcpy(achDtemp_cor_re, d_achDtemp_cor_re, nfreqeval*sizeof(REAL), cudaMemcpyDeviceToHost));
     CudaSafeCall(cudaMemcpy(achDtemp_cor_im, d_achDtemp_cor_im, nfreqeval*sizeof(REAL), cudaMemcpyDeviceToHost));
 
@@ -587,12 +613,14 @@ int main(int argc, char** argv)
 
     gettimeofday(&endTimer_Kernel, NULL);
     double elapsed_achsDtemp = elapsedTime(start_achsDtemp_Kernel, end_achsDtemp_Kernel);
+    double elapsed_achsDtemp_mixed = elapsedTime(start_achsDtemp_mixed_Kernel, end_achsDtemp_mixed_Kernel);
     double elapsed_asxDtemp = elapsedTime(start_asxDtemp_Kernel, end_asxDtemp_Kernel);
     double elapsed_achDtemp_cor = elapsedTime(start_achDtemp_cor_Kernel, end_achDtemp_cor_Kernel);
     double elapsedTimer_Kernel = elapsedTime(startTimer_Kernel, endTimer_Kernel);
 
     std::cout.precision(13);
     std::cout << "achsDtemp = (" << achsDtemp.real() << ", " << achsDtemp.imag() << ")" << std::endl;
+    std::cout << "achsDtempD = (" << achsDtempD.real() << ", " << achsDtempD.imag() << ")" << std::endl;
     //achsDtemp.print();
     std::cout << "asxDtemp[0] = (" << asxDtemp[0].real() << ", " << asxDtemp[0].imag() << ")" << std::endl;
     //asxDtemp[0].print();
@@ -600,6 +628,7 @@ int main(int argc, char** argv)
     //achDtemp_cor[0].print();
 
     std::cout << "********** achsDtemp Time Taken **********= " << elapsed_achsDtemp << " secs" << std::endl;
+    std::cout << "********** achsDtemp_mixed Time Taken **********= " << elapsed_achsDtemp_mixed << " secs" << std::endl;
     std::cout << "********** asxDtemp Time Taken **********= " << elapsed_asxDtemp << " secs" << std::endl;
     std::cout << "********** achDtemp_cor Time Taken **********= " << elapsed_achDtemp_cor << " secs" << std::endl;
     std::cout << "********** Kernel Time Taken **********= " << elapsedTimer_Kernel << " secs" << std::endl;
@@ -616,6 +645,8 @@ int main(int argc, char** argv)
     cudaFree(d_achsDtemp);
     cudaFree(d_achsDtemp_re);
     cudaFree(d_achsDtemp_im);
+    cudaFree(d_achsDtemp_reD);
+    cudaFree(d_achsDtemp_imD);
     cudaFree(d_asxDtemp_re);
     cudaFree(d_asxDtemp_im);
     cudaFree(d_achDtemp_cor_re);

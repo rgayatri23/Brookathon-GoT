@@ -51,8 +51,39 @@ __global__ void achsDtemp_solver_1D(int number_bands, int ngpown, int ncouls, in
     }
 }
 
+template<int T>
+__global__ void achsDtemp_solver_1D_mixed(int number_bands, int ngpown, int ncouls, int *inv_igp_index, int *indinv, GPUComplex *aqsntemp, GPUComplex *aqsmtemp, GPUComplex *I_epsR_array, REAL *vcoul, double *achsDtemp_re, double *achsDtemp_im)
+{
+    const int n1 = blockIdx.x;
+    int numBlk = (ncouls+blockDim.x-1)/blockDim.x;
+    typedef cub::BlockReduce<GPUComplexD, T> BlockReduce;
+    GPUComplexD schsDtempD_red(0., 0.);
+    __shared__ typename BlockReduce::TempStorage temp_storage;
+    GPUComplex schsDtemp(0.00, 0.00);
+
+    for(int my_igp = 0; my_igp < ngpown; ++my_igp){
+        int indigp = inv_igp_index[my_igp];
+        int igp = indinv[indigp];
+
+        for(int blk = 0; blk < numBlk; blk++)
+        {
+            int ig = blk * blockDim.x + threadIdx.x;
+            if (ig< ncouls)
+                schsDtemp = schsDtemp - aqsntemp[n1*ncouls + ig] * thrust::conj(aqsmtemp[n1*ncouls + igp]) * I_epsR_array[1*ngpown*ncouls + my_igp*ncouls + ig]* vcoul[ig] * 0.5;
+        }
+    }
+    GPUComplexD schsDtempD = GPUComplexD(static_cast<double>(schsDtemp.real()), static_cast<double>(schsDtemp.imag()));
+    schsDtempD_red = BlockReduce(temp_storage).Sum(schsDtempD);
+
+    if(threadIdx.x==0){
+        atomicAdd2(achsDtemp_re, schsDtempD_red.real());
+        atomicAdd2(achsDtemp_im, schsDtempD_red.imag());
+    }
+}
+
+
 template<int T, int S>
-__global__ void achsDtemp_solver_2D_v2(int number_bands, int ngpown, int ncouls, int *inv_igp_index, int *indinv, GPUComplex *aqsntemp, GPUComplex *aqsmtemp, GPUComplex *I_epsR_array, REAL *vcoul, REAL *achsDtemp_re, REAL *achsDtemp_im)
+__global__ void achsDtemp_solver_2D(int number_bands, int ngpown, int ncouls, int *inv_igp_index, int *indinv, GPUComplex *aqsntemp, GPUComplex *aqsmtemp, GPUComplex *I_epsR_array, REAL *vcoul, REAL *achsDtemp_re, REAL *achsDtemp_im)
 {
     //prepare redcution
     typedef cub::BlockReduce<GPUComplex, T, cub::BLOCK_REDUCE_WARP_REDUCTIONS, S> BlockReduce;

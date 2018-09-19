@@ -409,7 +409,7 @@ void d_achsDtemp_Kernel(int number_bands, int ngpown, int ncouls, int *inv_igp_i
     dim3 numThreads(ntx, nty);
     dim3 numBlocks( int(ceil(size_t(ncouls)/REAL(numThreads.x))), int(ceil(size_t(number_bands)/REAL(numThreads.y))) );
 
-    achsDtemp_solver_2D_v2<ntx, nty><<<numBlocks, numThreads>>>(number_bands, ngpown, ncouls, inv_igp_index, indinv, aqsntemp, aqsmtemp, I_epsR_array, vcoul, achsDtemp_re, achsDtemp_im);
+    achsDtemp_solver_2D<ntx, nty><<<numBlocks, numThreads>>>(number_bands, ngpown, ncouls, inv_igp_index, indinv, aqsntemp, aqsmtemp, I_epsR_array, vcoul, achsDtemp_re, achsDtemp_im);
     gpuErrchk(cudaPeekAtLastError());
 #else
 #warning "Using 1D kernels"
@@ -417,6 +417,13 @@ void d_achsDtemp_Kernel(int number_bands, int ngpown, int ncouls, int *inv_igp_i
     const int numThreadsPerBlock=128;
     achsDtemp_solver_1D<numThreadsPerBlock><<<numBlocks, numThreadsPerBlock>>>(number_bands, ngpown, ncouls, inv_igp_index, indinv, aqsntemp, aqsmtemp, I_epsR_array, vcoul, achsDtemp_re, achsDtemp_im);
 #endif
+}
+
+void d_achsDtemp_mixed_Kernel(int number_bands, int ngpown, int ncouls, int *inv_igp_index, int *indinv, GPUComplex *aqsntemp, GPUComplex *aqsmtemp, GPUComplex *I_epsR_array, REAL *vcoul, double *achsDtemp_re, double *achsDtemp_im)
+{
+    dim3 numBlocks(number_bands, 1, 1);
+    const int numThreadsPerBlock=128;
+    achsDtemp_solver_1D_mixed<numThreadsPerBlock><<<numBlocks, numThreadsPerBlock>>>(number_bands, ngpown, ncouls, inv_igp_index, indinv, aqsntemp, aqsmtemp, I_epsR_array, vcoul, achsDtemp_re, achsDtemp_im);
 }
 
 void d_asxDtemp_Kernel(int nvband, int nfreqeval, int ncouls, int ngpown, int nFreq, REAL freqevalmin, REAL freqevalstep, REAL occ, REAL *ekq, REAL *dFreqGrid, int *inv_igp_index, int *indinv, GPUComplex *aqsmtemp, GPUComplex *aqsntemp, REAL *vcoul, GPUComplex *I_epsR_array, GPUComplex *I_epsA_array, REAL *asxDtemp_re, REAL *asxDtemp_im)
