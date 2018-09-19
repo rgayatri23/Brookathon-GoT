@@ -1,7 +1,7 @@
 EXE = ff.ex
 #SRC = testOpenACC.cpp
-SRC = ff_orig.cpp
-#SRC = ff.cpp
+#SRC = ff_orig.cpp
+SRC = ff.cpp
 
 #CXX = xlc++_r
 CXX = pgc++
@@ -9,7 +9,7 @@ CXX = pgc++
 LINK = ${CXX}
 
 ifeq ($(CXX),pgc++)
-	CXXFLAGS=-O3 -std=c++11 --gnu_extensions -g -Munroll -mcmodel=medium
+	CXXFLAGS=-O3 -g -std=c++11 --gnu_extensions -Munroll -mcmodel=medium #-Msafeptr
 	CXXFLAGS+=-acc -ta=tesla:cc70
 	CXXFLAGS+=-ta=tesla:managed#,ptxinfo
 	CXXFLAGS+=-Minfo=accel
