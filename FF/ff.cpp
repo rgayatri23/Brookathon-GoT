@@ -20,43 +20,48 @@ void init_structs(size_t nfreqeval, size_t nFreq, size_t ngpown, size_t ncouls, 
     CustomComplex<double> expR( 0.5 , 0.5);
     CustomComplex<double> expA( 0.5 , -0.5);
     CustomComplex<double> exprP1( 0.5 , 0.1);
-
-#pragma acc enter data create(ekq[0:number_bands], inv_igp_index[0:ngpown], indinv[0:ncouls], aqsmtemp[0:number_bands*ncouls], aqsntemp[0:number_bands*ncouls], \
-        I_epsR_array[0:nFreq*ngpown*ncouls], I_epsA_array[0:nFreq*ngpown*ncouls], schDt_matrix[0:number_bands*nFreq], vcoul[0:ncouls], dFreqBrd[0:nFreq], \
-        dFreqGrid[0:nFreq], asxDtemp[0:nfreqeval], achDtemp[0:nfreqeval], \
+#pragma acc enter data copyin(ekq[0:number_bands], inv_igp_index[0:ngpown], \
+        I_epsR_array[0:nFreq*ngpown*ncouls], I_epsA_array[0:nFreq*ngpown*ncouls], \
+        indinv[0:ncouls], aqsmtemp[0:number_bands*ncouls], aqsntemp[0:number_bands*ncouls], \
+	schDt_matrix[0:number_bands*nFreq], vcoul[0:ncouls], dFreqBrd[0:nFreq], \
+	asxDtemp[0:nfreqeval], achDtemp[0:nfreqeval], \
         achDtemp_cor[0:nfreqeval], achDtemp_cor_re[0:nfreqeval], achDtemp_cor_im[0:nfreqeval])
+#pragma acc enter data create(dFreqGrid[0:nFreq],pref[0:nFreq])
 
-#pragma acc kernels present(ekq, inv_igp_index, indinv, aqsmtemp, aqsntemp, I_epsR_array, I_epsA_array, schDt_matrix, vcoul, dFreqBrd, dFreqGrid, \
-        asxDtemp, achDtemp, achDtemp_cor, achDtemp_cor_re, achDtemp_cor_im)
-    {
+#pragma acc parallel loop
     for(int ig = 0; ig < ngpown; ++ig)
         inv_igp_index[ig] = ig;
 
-//#pragma acc parallel loop default(present)
+#pragma acc parallel loop
     for(int ig = 0; ig < ncouls; ++ig)
         indinv[ig] = ig;
 
-//#pragma acc parallel loop default(present)
+#pragma acc parallel loop
+    for(int i=0; i<number_bands; ++i)
+        ekq[i] = dw+i;
+
+#pragma acc parallel loop copyin(expr) present(aqsmtemp,aqsntemp)
     for(int i=0; i<number_bands; ++i)
     {
-        ekq[i] = dw +i;
-//        dw += 1.00;
-
         for(int j=0; j<ncouls; ++j)
         {
             aqsmtemp[i*ncouls+j] = expr;
             aqsntemp[i*ncouls+j] = expr;
         }
+    }
 
+#pragma acc parallel loop  present(schDt_matrix)
+    for(int i=0; i<number_bands; ++i)
+    {
         for(int j=0; j<nFreq; ++j)
             schDt_matrix[i*nFreq + j] = expr0;
     }
 
-//#pragma acc parallel loop default(present)
+#pragma acc parallel loop
     for(int i=0; i<ncouls; ++i)
         vcoul[i] = 1.00;
 
-//#pragma acc parallel loop default(present)
+#pragma acc parallel loop present(I_epsR_array,I_epsA_array)
     for(int i=0; i<nFreq; ++i)
     {
         for(int j=0; j<ngpown; ++j)
@@ -70,15 +75,14 @@ void init_structs(size_t nfreqeval, size_t nFreq, size_t ngpown, size_t ncouls, 
     }
 
     dw = 0.00;
-//#pragma acc parallel loop default(present)
+#pragma acc parallel loop present(dFreqBrd[0:nFreq],dFreqGrid[0:nFreq])
     for(int ijk = 0; ijk < nFreq; ++ijk)
     {
         dFreqBrd[ijk] = exprP1;
-        dFreqGrid[ijk] = dw+2;
-        dw += 2.00;
+        dFreqGrid[ijk] = (ijk*2.0);
     }
 
-//#pragma acc parallel loop default(present)
+#pragma acc parallel loop present(dFreqGrid[0:nFreq],pref[0:nFreq])
     for(int ifreq = 0; ifreq < nFreq; ++ifreq)
     {
         if(ifreq < nFreq-1)
@@ -87,12 +91,12 @@ void init_structs(size_t nfreqeval, size_t nFreq, size_t ngpown, size_t ncouls, 
                 pref[ifreq] = pref[ifreq-1];
 
     }
-//#pragma acc serial
+#pragma acc serial
     {
     pref[0] *= 0.5; pref[nFreq-1] *= 0.5;
     }
 
-//#pragma acc parallel loop default(present)
+#pragma acc parallel loop present(asxDtemp,achDtemp,achDtemp_cor,achDtemp_cor_re,achDtemp_cor_im)
     for(int i = 0; i < nfreqeval; ++i)
     {
         asxDtemp[i] = expr0;
@@ -101,7 +105,7 @@ void init_structs(size_t nfreqeval, size_t nFreq, size_t ngpown, size_t ncouls, 
         achDtemp_cor_re[i] = 0.00;
         achDtemp_cor_im[i] = 0.00;
     }
-    }
+
 }
 void calculate_schDt_lin3(CustomComplex<double>& schDt_lin3, bool flag_occ, int freqevalmin, double *ekq, int iw, int freqevalstep, double cedifft_zb_right, double cedifft_zb_left, CustomComplex<double> schDt_left, CustomComplex<double> schDt_lin2, int n1, double pref_zb, CustomComplex<double> pref_zb_compl, CustomComplex<double> schDt_avg)
 {
@@ -109,7 +113,6 @@ void calculate_schDt_lin3(CustomComplex<double>& schDt_lin3, bool flag_occ, int 
     if(intfact < 0.0001) intfact = 0.0001;
     if(intfact > 10000) intfact = 10000;
     intfact = -log(intfact);
-    //sch2Di[iw] = sch2Di[iw] - pref_zb_compl * schDt_avg * intfact;
     if(flag_occ)
     {
        double  intfact = abs((freqevalmin - ekq[n1] + (iw-1)*freqevalstep + cedifft_zb_right) / (freqevalmin - ekq[n1] + (iw-1)*freqevalstep + cedifft_zb_left));
@@ -194,8 +197,6 @@ void achsDtemp_Kernel(int number_bands, int ngpown, int ncouls, int nFreq, int *
     double achsDtemp_re = 0.00, achsDtemp_im = 0.00;
     timeval startTimer , endTimer;
 
-//#pragma acc enter data copyin(inv_igp_index[0:ngpown], indinv[0:ncouls], aqsmtemp[0:number_bands*ncouls], aqsntemp[0:number_bands*ncouls], I_epsR_array[0:nFreq*ngpown*ncouls], I_epsA_array[0:nFreq*ngpown*ncouls])
-
     gettimeofday(&startTimer, NULL);
 #pragma acc parallel loop gang collapse(2) present(inv_igp_index, indinv, aqsmtemp, aqsntemp, I_epsR_array, I_epsA_array, vcoul)\
     reduction(+:achsDtemp_re, achsDtemp_im) \
@@ -243,13 +244,13 @@ void asxDtemp_Kernel(int number_bands, int nvband, int nfreqeval, int ncouls, in
         asxDtemp_im[iw] = 0.00;
     }
 }
-
     timeval startTimer , endTimer;
     gettimeofday(&startTimer, NULL);
-#pragma acc parallel loop gang collapse(3) present(ekq, vcoul, asxDtemp_re, asxDtemp_im, inv_igp_index, indinv, aqsmtemp, aqsntemp, I_epsR_array, I_epsA_array)
+#pragma acc parallel loop gang vector collapse(3)  \
+     present(ekq, asxDtemp_re, asxDtemp_im, inv_igp_index, indinv, aqsmtemp, aqsntemp, \
+             I_epsR_array, I_epsA_array,asxDtemp_re,asxDtemp_im,dFreqGrid[:nFreq],vcoul)
     for(int n1 = 0; n1 < nvband; ++n1) //nvband=1998
     {
-//#pragma acc loop vector
         for(int my_igp = 0; my_igp < ngpown; ++my_igp) //ngpown = 66
         {
             for(int iw = 0; iw < nfreqeval; ++iw) //nfreqeval = 10
@@ -278,11 +279,13 @@ void asxDtemp_Kernel(int number_bands, int nvband, int nfreqeval, int ncouls, in
         }
     }
 
+#pragma acc update self(asxDtemp_re[0:nfreqeval],asxDtemp_im[0:nfreqeval])
     for(int iw = 0; iw < nfreqeval; ++iw)
         asxDtemp[iw] = CustomComplex<double>(asxDtemp_re[iw], asxDtemp_im[iw]);
 
     gettimeofday(&endTimer, NULL);
     elapsed_time = elapsedTime(startTimer, endTimer);
+
 
 #pragma acc exit data delete(asxDtemp_re[0:nfreqeval], asxDtemp_im[0:nfreqeval])
     free(asxDtemp_re);
@@ -294,7 +297,6 @@ void achDtemp_Kernel(int number_bands, int nvband, int nfreqeval, int ncouls, in
 {
     bool flag_occ;
     CustomComplex<double> expr0(0.00, 0.00);
-//#pragma omp parallel for default(shared) collapse(2)
     for(int n1 = 0; n1 < number_bands; ++n1)
     {
         for(int ifreq = 0; ifreq < nFreq; ++ifreq)
@@ -326,11 +328,9 @@ void achDtemp_Kernel(int number_bands, int nvband, int nfreqeval, int ncouls, in
 
                 for(int iw = 0; iw < nfreqeval; ++iw)
                 {
-                    //sch2Di[iw] = expr0;
                     calculate_schDt_lin3(schDt_lin3, flag_occ, freqevalmin, ekq, iw, freqevalstep, cedifft_zb_right, cedifft_zb_left, schDt_left, schDt_lin2, n1, pref_zb, pref_zb_compl, schDt_avg);
 
                     schDt_lin3 += schDt_lin;
-//                    schDi_cor[iw] = schDi_cor[iw] -  (pref_zb_compl * schDt_lin3);
                 }
             }
 
@@ -353,14 +353,13 @@ void achDtemp_cor_Kernel(int number_bands, int nvband, int nfreqeval, int ncouls
     timeval startTimer , endTimer;
     gettimeofday(&startTimer, NULL);
 
-#pragma acc parallel loop gang vector collapse(2) present(ekq, inv_igp_index[0:ngpown], indinv[0:ncouls], aqsmtemp[0:number_bands*ncouls], aqsntemp[0:number_bands*ncouls], I_epsR_array[0:nFreq*ngpown*ncouls], I_epsA_array[0:nFreq*ngpown*ncouls])\
+#pragma acc parallel loop gang vector collapse(2) present(inv_igp_index[0:ngpown], indinv[0:ncouls], aqsmtemp[0:number_bands*ncouls], aqsntemp[0:number_bands*ncouls], I_epsR_array[0:nFreq*ngpown*ncouls], I_epsA_array[0:nFreq*ngpown*ncouls],dFreqGrid,vcoul)\
     copyout(achDtemp_cor_re[0:nfreqeval], achDtemp_cor_im[0:nfreqeval]) \
     num_gangs(number_bands) num_workers(1) vector_length(32)
     for(int n1 = 0; n1 < number_bands; ++n1)
     {
         flag_occ = n1 < nvband;
 
-//#pragma acc loop vector
         for(int iw = 0; iw < nfreqeval; ++iw)
         {
             CustomComplex<double> schDi_cor(0.00, 0.00);
@@ -381,7 +380,6 @@ void achDtemp_cor_Kernel(int number_bands, int nvband, int nfreqeval, int ncouls
 
 
 //Summing up at the end of iw loop
-//            achDtemp_cor[iw] += schDi_cor;
             double schDi_cor_re = CustomComplex_real(schDi_cor);
             double schDi_cor_im = CustomComplex_imag(schDi_cor);
 #pragma acc atomic
@@ -393,12 +391,7 @@ void achDtemp_cor_Kernel(int number_bands, int nvband, int nfreqeval, int ncouls
 
     gettimeofday(&endTimer, NULL);
     elapsed_time = elapsedTime(startTimer, endTimer);
-//#pragma acc exit data delete(inv_igp_index[0:ngpown], indinv[0:ncouls], aqsmtemp[0:number_bands*ncouls], aqsntemp[0:number_bands*ncouls], I_epsR_array[0:nFreq*ngpown*ncouls], I_epsA_array[0:nFreq*ngpown*ncouls])
-//#pragma acc exit data delete(ekq[0:number_bands], inv_igp_index[0:ngpown], indinv[0:ncouls], aqsmtemp[0:number_bands*ncouls], aqsntemp[0:number_bands*ncouls], \
-        I_epsR_array[0:nFreq*ngpown*ncouls], I_epsA_array[0:nFreq*ngpown*ncouls], schDt_matrix[0:number_bands*nFreq], vcoul[0:ncouls], dFreqBrd[0:nFreq], \
-        dFreqGrid[0:nFreq], schDi[0:nfreqeval], asxDtemp[0:nfreqeval], achDtemp[0:nfreqeval], \
-        achDtemp_cor[0:nfreqeval], achDtemp_cor_re[0:nfreqeval], achDtemp_cor_im[0:nfreqeval])
-
+#pragma acc update self(achDtemp_cor_re[0:nfreqeval],achDtemp_cor_im[0:nfreqeval])
 }
 
 static inline void schDttt_corKernel1(CustomComplex<double> &schDttt_cor, int *inv_igp_index, int *indinv, CustomComplex<double> *I_epsR_array, CustomComplex<double> *I_epsA_array, CustomComplex<double> *aqsmtemp, CustomComplex<double> *aqsntemp, double *vcoul, int ncouls, int ifreq, int ngpown, int n1, double fact1, double fact2)
@@ -539,74 +532,9 @@ int main(int argc, char** argv)
     double *achDtemp_cor_im = new double[nfreqeval];
 
 
-    //Initialize the data structures
-//    for(int ig = 0; ig < ngpown; ++ig)
-//        inv_igp_index[ig] = ig;
-//
-//    for(int ig = 0; ig < ncouls; ++ig)
-//        indinv[ig] = ig;
-//
-//    for(int i=0; i<number_bands; ++i)
-//    {
-//        ekq[i] = dw;
-//        dw += 1.00;
-//
-//        for(int j=0; j<ncouls; ++j)
-//        {
-//            aqsmtemp[i*ncouls+j] = expr;
-//            aqsntemp[i*ncouls+j] = expr;
-//        }
-//
-//        for(int j=0; j<nFreq; ++j)
-//            schDt_matrix[i*nFreq + j] = expr0;
-//    }
-//
-//    for(int i=0; i<ncouls; ++i)
-//        vcoul[i] = 1.00;
-//
-//    for(int i=0; i<nFreq; ++i)
-//    {
-//        for(int j=0; j<ngpown; ++j)
-//        {
-//            for(int k=0; k<ncouls; ++k)
-//            {
-//                I_epsR_array[i*ngpown*ncouls + j * ncouls + k] = expR;
-//                I_epsA_array[i*ngpown*ncouls + j * ncouls + k] = expA;
-//            }
-//        }
-//    }
-//
-//    dw = 0.00;
-//    for(int ijk = 0; ijk < nFreq; ++ijk)
-//    {
-//        dFreqBrd[ijk] = exprP1;
-//        dFreqGrid[ijk] = dw;
-//        dw += 2.00;
-//    }
-//
-//    for(int ifreq = 0; ifreq < nFreq; ++ifreq)
-//    {
-//        if(ifreq < nFreq-1)
-//            pref[ifreq] = (dFreqGrid[ifreq+1] - dFreqGrid[ifreq]) / 3.14;
-//            else
-//                pref[ifreq] = pref[ifreq-1];
-//
-//    }
-//    pref[0] *= 0.5; pref[nFreq-1] *= 0.5;
-//
-//    for(int i = 0; i < nfreqeval; ++i)
-//    {
-//        asxDtemp[i] = expr0;
-//        achDtemp[i] = expr0;
-//        achDtemp_cor[i] = expr0;
-//        achDtemp_cor_re[i] = 0.00;
-//        achDtemp_cor_im[i] = 0.00;
-//    }
-//    acc_present_dump();
     init_structs(nfreqeval, nFreq, ngpown, ncouls, number_bands, inv_igp_index, indinv, ekq, pref, aqsmtemp, aqsntemp, \
             schDt_matrix, vcoul, I_epsR_array, I_epsA_array, dFreqBrd, dFreqGrid, \
             asxDtemp, achDtemp, achDtemp_cor, achDtemp_cor_re, achDtemp_cor_im);
-//    acc_present_dump();
 
 
     gettimeofday(&end_preKernel, NULL);
@@ -619,8 +547,6 @@ int main(int argc, char** argv)
     cout << "starting Kernels" << endl;
 
     double elapsed_achsDtemp = 0.00, elapsed_asxDtemp = 0.00, elapsed_achDtemp_cor = 0.00;
-
-//#pragma acc enter data copyin(inv_igp_index[0:ngpown], indinv[0:ncouls], aqsmtemp[0:number_bands*ncouls], aqsntemp[0:number_bands*ncouls], I_epsR_array[0:nFreq*ngpown*ncouls], I_epsA_array[0:nFreq*ngpown*ncouls])
 
     /***********achsDtemp Kernel ****************/
     achsDtemp_Kernel(number_bands, ngpown, ncouls, nFreq, inv_igp_index, indinv, aqsntemp, aqsmtemp, I_epsR_array, I_epsA_array, vcoul, achsDtemp, elapsed_achsDtemp);
@@ -639,8 +565,6 @@ int main(int argc, char** argv)
 
     gettimeofday(&endTimer_Kernel, NULL);
     double elapsedTimer_Kernel = elapsedTime(startTimer_Kernel, endTimer_Kernel);
-
-//#pragma acc exit data delete(inv_igp_index[0:ngpown], indinv[0:ncouls], aqsmtemp[0:number_bands*ncouls], aqsntemp[0:number_bands*ncouls], I_epsR_array[0:nFreq*ngpown*ncouls], I_epsA_array[0:nFreq*ngpown*ncouls])
 
     cout << "achsDtemp = " ;
     achsDtemp.print();
