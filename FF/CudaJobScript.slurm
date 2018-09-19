@@ -12,7 +12,7 @@ exec=ff_GPUComplex
 input="15023 1998 33401 66 15 10"
 pwd; hostname; date
 rm -r ff_metrics.nvprof
-#./${exec}.ex ${input}
-${nvprof1} ./${exec}.ex ${input}
-${nvprof2} ./${exec}.ex ${input}
+./${exec}.ex ${input}
+#${nvprof1} ./${exec}.ex ${input}
+#${nvprof2} ./${exec}.ex ${input}
 date
