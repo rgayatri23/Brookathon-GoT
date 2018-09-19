@@ -87,12 +87,12 @@ class GPUComplex : public double2{
         return this->y;
     }
 
-    void set_real(double val)
+    __host__ __device__     void set_real(double val)
     {
         this->x = val;
     }
 
-    void set_imag(double val) 
+    __host__ __device__     void set_imag(double val) 
     {
         this->y = val;
     }
