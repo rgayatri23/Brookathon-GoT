@@ -485,25 +485,11 @@ __global__ void achDtemp_cor_solver_1D(int number_bands, int nvband, int nfreqev
 void d_achsDtemp_Kernel(int number_bands, int ngpown, int ncouls, int *inv_igp_index, int *indinv, GPUComplex *aqsntemp, GPUComplex *aqsmtemp, GPUComplex *I_epsR_array, double *vcoul, double *achsDtemp_re, double *achsDtemp_im)
 {
 
-    //#define __Kernel_2D_v2
 
-//#if defined(__Kernel_2D)
-//    //int numThreadsPerBlock=32;
-//    dim3 numThreads(32, 1);
-//    dim3 numBlocks( ceil(ncouls/numThreads.x), ceil((size_t(ngpown)*size_t(number_bands))/numThreads.y) );
-////    dim3 numBlocks(number_bands, ngpown);
-//    
-//    std::cout << "numBlocks(" << numBlocks.x << "," << numBlocks.y << ")" << " numThreads(" << numThreads.x << "," << numThreads.y << ")" << std::endl;
-//    
-//    achsDtemp_solver_2D<<<numBlocks, numThreads>>>(number_bands, ngpown, ncouls, inv_igp_index, indinv, aqsntemp, aqsmtemp, I_epsR_array, vcoul, achsDtemp_re, achsDtemp_im);
-//    gpuErrchk(cudaPeekAtLastError());
 #if defined(__Kernel_2D)
-    const int ntx=4, nty=128;
+    const int ntx=8, nty=128;
     dim3 numThreads(ntx, nty);
     dim3 numBlocks( int(ceil(size_t(ncouls)/double(numThreads.x))), int(ceil(size_t(number_bands)/double(numThreads.y))) );
-//    dim3 numBlocks(number_bands, ngpown);
-    
-    std::cout << "numBlocks(" << numBlocks.x << "," << numBlocks.y << ")" << " numThreads(" << numThreads.x << "," << numThreads.y << ")" << std::endl;
     
     achsDtemp_solver_2D_v2<ntx, nty><<<numBlocks, numThreads>>>(number_bands, ngpown, ncouls, inv_igp_index, indinv, aqsntemp, aqsmtemp, I_epsR_array, vcoul, achsDtemp_re, achsDtemp_im);
     gpuErrchk(cudaPeekAtLastError());
