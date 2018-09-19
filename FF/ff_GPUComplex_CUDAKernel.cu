@@ -474,6 +474,7 @@ void d_achsDtemp_Kernel(int number_bands, int ngpown, int ncouls, int *inv_igp_i
 
 
 #if defined(__Kernel_2D)
+#warning "using 2D kernels"
     const int ntx=8, nty=128;
     dim3 numThreads(ntx, nty);
     dim3 numBlocks( int(ceil(size_t(ncouls)/double(numThreads.x))), int(ceil(size_t(number_bands)/double(numThreads.y))) );
@@ -481,6 +482,7 @@ void d_achsDtemp_Kernel(int number_bands, int ngpown, int ncouls, int *inv_igp_i
     achsDtemp_solver_2D_v2<ntx, nty><<<numBlocks, numThreads>>>(number_bands, ngpown, ncouls, inv_igp_index, indinv, aqsntemp, aqsmtemp, I_epsR_array, vcoul, achsDtemp_re, achsDtemp_im);
     gpuErrchk(cudaPeekAtLastError());
 #else
+#warning "using 1D kernels"
     dim3 numBlocks(number_bands, 1, 1);
     int numThreadsPerBlock=16;
     achsDtemp_solver_1D<<<numBlocks, numThreadsPerBlock>>>(number_bands, ngpown, ncouls, inv_igp_index, indinv, aqsntemp, aqsmtemp, I_epsR_array, vcoul, achsDtemp_re, achsDtemp_im);
