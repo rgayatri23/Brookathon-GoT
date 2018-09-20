@@ -13,7 +13,7 @@ inline void schDttt_corKernel1(GPUComplex &schDttt_cor, int *inv_igp_index, int 
 
 inline void schDttt_corKernel2(GPUComplex &schDttt_cor, int *inv_igp_index, int *indinv, GPUComplex *I_epsR_array, GPUComplex *I_epsA_array, GPUComplex *aqsmtemp, GPUComplex *aqsntemp, REAL *vcoul, int ncouls, int ifreq, int ngpown, int n1, REAL fact1, REAL fact2);
 
-void d_achsDtemp_Kernel(int number_bands, int ngpown, int ncouls, int *inv_igp_index, int *indinv, GPUComplex *aqsntemp, GPUComplex *aqsmtemp, GPUComplex *I_epsR_array, REAL *vcoul, REAL *achsDtemp_re, REAL *achsDtemp_im);
+void d_achsDtemp_Kernel(int number_bands, int ngpown, int ncouls, int *inv_igp_index, int *indinv, GPUComplex *aqsntemp, GPUComplex *aqsmtemp, GPUComplex *I_epsR_array, REAL *vcoul, GPUComplex *achsDtemp);
 
 void d_achsDtemp_mixed_Kernel(int number_bands, int ngpown, int ncouls, int *inv_igp_index, int *indinv, GPUComplex *aqsntemp, GPUComplex *aqsmtemp, GPUComplex *I_epsR_array, REAL *vcoul, double *achsDtemp_re, double *achsDtemp_im);
 
