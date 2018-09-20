@@ -19,7 +19,7 @@ using namespace std;
 
 class GPUComplex : public double2{
 
-    private : 
+    private :
 //    double x;
 //    double y;
 
@@ -92,7 +92,7 @@ class GPUComplex : public double2{
         this->x = val;
     }
 
-    void set_imag(double val) 
+    void set_imag(double val)
     {
         this->y = val;
     }
@@ -172,7 +172,7 @@ class GPUComplex : public double2{
 };
 
 /*
- * Return the conjugate of a complex number 
+ * Return the conjugate of a complex number
  1flop
  */
 //template<class re, class im>
@@ -187,7 +187,7 @@ inline GPUComplex GPUComplex_conj(const GPUComplex& src) {
 }
 
 /*
- * Return the absolute of a complex number 
+ * Return the absolute of a complex number
  */
 //template<class re, class im>
 inline double GPUComplex_abs(const GPUComplex& src) {
@@ -199,7 +199,7 @@ inline double GPUComplex_abs(const GPUComplex& src) {
 }
 
 /*
- * Return the real part of a complex number 
+ * Return the real part of a complex number
  */
 //template<class re, class im>
 inline double GPUComplex_real( const GPUComplex& src) {
@@ -207,7 +207,7 @@ inline double GPUComplex_real( const GPUComplex& src) {
 }
 
 /*
- * Return the imaginary part of a complex number 
+ * Return the imaginary part of a complex number
  */
 //template<class re, class im>
 inline double GPUComplex_imag( const GPUComplex& src) {

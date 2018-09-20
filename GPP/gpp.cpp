@@ -1,4 +1,4 @@
-#include "../ComplexClass/GPUComplex.h"
+#include "../ComplexClass/CustomComplex.h"
 #include <openacc.h>
 
 using namespace std;
@@ -7,77 +7,140 @@ using namespace std;
 
 #define reductionVersion 1
 
-inline void reduce_achstemp(int n1, int number_bands, int* inv_igp_index, int ncouls, GPUComplex  *aqsmtemp, GPUComplex *aqsntemp, GPUComplex *I_eps_array, GPUComplex achstemp,  int* indinv, int ngpown, double* vcoul, int numThreads)
+double elapsedTime(timeval start_time, timeval end_time)
 {
-    double to1 = 1e-6;
-    GPUComplex schstemp(0.0, 0.0);;
-
-    for(int my_igp = 0; my_igp< ngpown; my_igp++)
-    {
-        GPUComplex schs(0.0, 0.0);
-        GPUComplex matngmatmgp(0.0, 0.0);
-        GPUComplex matngpmatmg(0.0, 0.0);
-        GPUComplex mygpvar1(0.00, 0.00), mygpvar2(0.00, 0.00);
-        int indigp = inv_igp_index[my_igp];
-        int igp = indinv[indigp];
-        if(indigp == ncouls)
-            igp = ncouls-1;
-
-        if(!(igp > ncouls || igp < 0)){
-
-            mygpvar1 = GPUComplex_conj(aqsmtemp[n1*ncouls+igp]);
-            mygpvar2 = aqsntemp[n1*ncouls+igp];
-            schs = I_eps_array[my_igp*ncouls+igp];
-            matngmatmgp = mygpvar1 * aqsntemp[n1*ncouls+igp];
-
-            if(GPUComplex_abs(schs) > to1)
-                schstemp += matngmatmgp * schs;
-            }
-            else
-            {
-                for(int ig=1; ig<ncouls; ++ig)
-                {
-                    GPUComplex mult_result(I_eps_array[my_igp*ncouls+ig] * mygpvar1);
-                    schstemp -= aqsntemp[n1*ncouls +igp] * mult_result;
-                }
-            }
-
-        schstemp = schstemp * vcoul[igp]*0.5;
-        achstemp += schstemp;
-    }
+    return ((end_time.tv_sec - start_time.tv_sec) +1e-6*(end_time.tv_usec - start_time.tv_usec));
 }
 
-inline void flagOCC_solver(double wxt, GPUComplex *wtilde_array, int my_igp, int n1, GPUComplex *aqsmtemp, GPUComplex *aqsntemp, GPUComplex *I_eps_array, GPUComplex &ssxt, GPUComplex &scht,int ncouls, int igp, int number_bands, int ngpown)
+void init_structs(size_t number_bands, size_t ngpown, size_t ncouls, CustomComplex<double> *aqsmtemp, CustomComplex<double> *aqsntemp, CustomComplex<double> *I_eps_array, \
+        CustomComplex<double> *wtilde_array, double *vcoul, int *inv_igp_index, int *indinv, CustomComplex<double> *asxtemp, double *achtemp_re, double *achtemp_im, double *wx_array)
 {
-    GPUComplex expr0(0.00, 0.00);
-    GPUComplex expr(0.5, 0.5);
-    GPUComplex matngmatmgp(0.0, 0.0);
-    GPUComplex matngpmatmg(0.0, 0.0);
+    const double dw = 1;
+    const double e_lk = 10;
+    const double to1 = 1e-6;
+    const double limittwo = pow(0.5,2);
+    const double e_n1kq= 6.0;
+    CustomComplex<double> expr0(0.00, 0.00);
+    CustomComplex<double> expr(0.5, 0.5);
+
+#pragma acc enter data create (aqsmtemp[0:number_bands*ncouls], aqsntemp[0:number_bands*ncouls], I_eps_array[0:ngpown*ncouls], vcoul[0:ncouls], inv_igp_index[0:ngpown], \
+        indinv[0:ncouls+1], asxtemp[nstart:nend], achtemp_re[nstart:nend], achtemp_im[nstart:nend], wtilde_array[0:ngpown*ncouls], wx_array[nstart:nend])
+
+#pragma acc parallel loop copyin(expr) present(aqsmtemp, aqsntemp)
+   for(int i=0; i<number_bands; i++)
+       for(int j=0; j<ncouls; j++)
+       {
+           aqsmtemp[i*ncouls+j] = expr;
+           aqsntemp[i*ncouls+j] = expr;
+       }
+
+#pragma acc parallel loop copyin(expr) present(I_eps_array, wtilde_array)
+   for(int i=0; i<ngpown; i++)
+       for(int j=0; j<ncouls; j++)
+       {
+           I_eps_array[i*ncouls+j] = expr;
+           wtilde_array[i*ncouls+j] = expr;
+       }
+
+#pragma acc parallel loop present(vcoul)
+   for(int i=0; i<ncouls; i++)
+       vcoul[i] = 1.0;
+
+
+#pragma acc parallel loop present(inv_igp_index)
+    for(int ig=0; ig < ngpown; ++ig)
+        inv_igp_index[ig] = (ig+1) * ncouls / ngpown;
+
+#pragma acc parallel loop present(indinv)
+    for(int ig=0; ig<ncouls; ++ig)
+        indinv[ig] = ig;
+        indinv[ncouls] = ncouls-1;
+
+#pragma acc parallel loop present(asxtemp, achtemp_re, achtemp_im)
+       for(int iw=nstart; iw<nend; ++iw)
+       {
+           asxtemp[iw] = expr0;
+           achtemp_re[iw] = 0.00;
+           achtemp_im[iw] = 0.00;
+           wx_array[iw] = e_lk - e_n1kq + dw*((iw+1)-2);
+           if(wx_array[iw] < to1) wx_array[iw] = to1;
+       }
+}
+
+inline void reduce_achstemp(int number_bands, int* inv_igp_index, int ncouls, CustomComplex<double>  *aqsmtemp, CustomComplex<double> *aqsntemp, CustomComplex<double> *I_eps_array,\
+        CustomComplex<double> achstemp,  int* indinv, int ngpown, double* vcoul, int numThreads)
+{
+    double to1 = 1e-6;
+    CustomComplex<double> schstemp(0.0, 0.0);;
+
+#pragma acc kernels present(inv_igp_index, aqsmtemp, aqsntemp, I_eps_array, indinv, vcoul)
+    for(int n1 = 0; n1<number_bands; ++n1)
+        for(int my_igp = 0; my_igp< ngpown; my_igp++)
+        {
+            CustomComplex<double> schs(0.0, 0.0);
+            CustomComplex<double> matngmatmgp(0.0, 0.0);
+            CustomComplex<double> matngpmatmg(0.0, 0.0);
+            CustomComplex<double> mygpvar1(0.00, 0.00), mygpvar2(0.00, 0.00);
+            int indigp = inv_igp_index[my_igp];
+            int igp = indinv[indigp];
+            if(indigp == ncouls)
+                igp = ncouls-1;
+
+            if(!(igp > ncouls || igp < 0)){
+
+                mygpvar1 = CustomComplex_conj(aqsmtemp[n1*ncouls+igp]);
+                mygpvar2 = aqsntemp[n1*ncouls+igp];
+                schs = I_eps_array[my_igp*ncouls+igp];
+                matngmatmgp = mygpvar1 * aqsntemp[n1*ncouls+igp];
+
+                if(CustomComplex_abs(schs) > to1)
+                    schstemp += matngmatmgp * schs;
+                }
+                else
+                {
+                    for(int ig=1; ig<ncouls; ++ig)
+                    {
+                        CustomComplex<double> mult_result(I_eps_array[my_igp*ncouls+ig] * mygpvar1);
+                        schstemp -= aqsntemp[n1*ncouls +igp] * mult_result;
+                    }
+                }
+
+            schstemp = schstemp * vcoul[igp]*0.5;
+            achstemp += schstemp;
+        }
+}
+
+inline void flagOCC_solver(double wxt, CustomComplex<double> *wtilde_array, int my_igp, int n1, CustomComplex<double> *aqsmtemp, CustomComplex<double> *aqsntemp, CustomComplex<double> *I_eps_array, CustomComplex<double> &ssxt, CustomComplex<double> &scht,int ncouls, int igp, int number_bands, int ngpown)
+{
+    CustomComplex<double> expr0(0.00, 0.00);
+    CustomComplex<double> expr(0.5, 0.5);
+    CustomComplex<double> matngmatmgp(0.0, 0.0);
+    CustomComplex<double> matngpmatmg(0.0, 0.0);
 
     for(int ig=0; ig<ncouls; ++ig)
     {
-        GPUComplex wtilde = wtilde_array[my_igp*ncouls+ig];
-        GPUComplex wtilde2 = wtilde * wtilde;
-        GPUComplex Omega2 = wtilde2*I_eps_array[my_igp*ncouls+ig];
-        GPUComplex mygpvar1 = GPUComplex_conj(aqsmtemp[n1*ncouls+igp]);
-        GPUComplex mygpvar2 = aqsmtemp[n1*ncouls+igp];
-        GPUComplex matngmatmgp = aqsntemp[n1*ncouls+ig] * mygpvar1;
-        if(ig != igp) matngpmatmg = GPUComplex_conj(aqsmtemp[n1*ncouls+ig]) * mygpvar2;
+        CustomComplex<double> wtilde = wtilde_array[my_igp*ncouls+ig];
+        CustomComplex<double> wtilde2 = wtilde * wtilde;
+        CustomComplex<double> Omega2 = wtilde2*I_eps_array[my_igp*ncouls+ig];
+        CustomComplex<double> mygpvar1 = CustomComplex_conj(aqsmtemp[n1*ncouls+igp]);
+        CustomComplex<double> mygpvar2 = aqsmtemp[n1*ncouls+igp];
+        CustomComplex<double> matngmatmgp = aqsntemp[n1*ncouls+ig] * mygpvar1;
+        if(ig != igp) matngpmatmg = CustomComplex_conj(aqsmtemp[n1*ncouls+ig]) * mygpvar2;
 
         double ssxcutoff;
         double to1 = 1e-6;
         double sexcut = 4.0;
         double limitone = 1.0/(to1*4.0);
         double limittwo = pow(0.5,2);
-        GPUComplex sch(0.00, 0.00), ssx(0.00, 0.00);
+        CustomComplex<double> sch(0.00, 0.00), ssx(0.00, 0.00);
 
-        GPUComplex wdiff = wxt - wtilde;
+        CustomComplex<double> wdiff = wxt - wtilde;
 
-        GPUComplex cden = wdiff;
-        double rden = 1/GPUComplex_real(cden * GPUComplex_conj(cden));
-        GPUComplex delw = wtilde * GPUComplex_conj(cden) * rden;
-        double delwr = GPUComplex_real(delw * GPUComplex_conj(delw));
-        double wdiffr = GPUComplex_real(wdiff * GPUComplex_conj(wdiff));
+        CustomComplex<double> cden = wdiff;
+        double rden = 1/CustomComplex_real(cden * CustomComplex_conj(cden));
+        CustomComplex<double> delw = wtilde * CustomComplex_conj(cden) * rden;
+        double delwr = CustomComplex_real(delw * CustomComplex_conj(delw));
+        double wdiffr = CustomComplex_real(wdiff * CustomComplex_conj(wdiff));
 
         if((wdiffr > limittwo) && (delwr < limitone))
         {
@@ -91,9 +154,9 @@ inline void flagOCC_solver(double wxt, GPUComplex *wtilde_array, int my_igp, int
         {
             sch = expr0;
             cden = wtilde2 * (0.50 + delw) * 4.00;
-            rden = GPUComplex_real(cden * GPUComplex_conj(cden));
+            rden = CustomComplex_real(cden * CustomComplex_conj(cden));
             rden = 1.00/rden;
-            ssx = -Omega2 * GPUComplex_conj(cden) * delw * rden;
+            ssx = -Omega2 * CustomComplex_conj(cden) * delw * rden;
         }
         else
         {
@@ -101,8 +164,8 @@ inline void flagOCC_solver(double wxt, GPUComplex *wtilde_array, int my_igp, int
             ssx = expr0;
         }
 
-        ssxcutoff = GPUComplex_abs(I_eps_array[my_igp*ngpown+ig]) * sexcut;
-        if((GPUComplex_abs(ssx) > ssxcutoff) && (wxt < 0.00)) ssx = expr0;
+        ssxcutoff = CustomComplex_abs(I_eps_array[my_igp*ngpown+ig]) * sexcut;
+        if((CustomComplex_abs(ssx) > ssxcutoff) && (wxt < 0.00)) ssx = expr0;
 
         ssxt += matngmatmgp * ssx;
         scht += matngmatmgp * sch;
@@ -110,14 +173,11 @@ inline void flagOCC_solver(double wxt, GPUComplex *wtilde_array, int my_igp, int
 }
 
 
-void till_nvband(int number_bands, int nvband, int ngpown, int ncouls, GPUComplex *asxtemp, double *wx_array, GPUComplex *wtilde_array, GPUComplex *aqsmtemp, GPUComplex *aqsntemp, GPUComplex *I_eps_array, int *inv_igp_index, int *indinv, double *vcoul)
+void till_nvband(int number_bands, int nvband, int ngpown, int ncouls, CustomComplex<double> *asxtemp, double *wx_array, CustomComplex<double> *wtilde_array, CustomComplex<double> *aqsmtemp, CustomComplex<double> *aqsntemp, CustomComplex<double> *I_eps_array, int *inv_igp_index, int *indinv, double *vcoul)
 {
     const double occ=1.0;
 //#pragma omp parallel for collapse(3)
-#pragma acc enter data copyin(inv_igp_index[0:ngpown], indinv[0:ncouls+1], wtilde_array[0:ngpown*ncouls], wx_array[0:3], aqsmtemp[0:number_bands*ncouls], aqsntemp[0:number_bands*ncouls], I_eps_array[0:ngpown*ncouls], vcoul[0:ncouls])
-#pragma acc parallel loop present(inv_igp_index[0:ngpown], indinv[0:ncouls+1], wtilde_array[0:ngpown*ncouls], wx_array[0:3], aqsmtemp[0:number_bands*ncouls], aqsntemp[0:number_bands*ncouls], I_eps_array[0:ngpown*ncouls], vcoul[0:ncouls]) \
-copyout(asxtemp[nstart:nend]) collapse(3)
-
+#pragma acc parallel loop present(inv_igp_index, indinv, wtilde_array, wx_array, aqsmtemp, aqsntemp, I_eps_array, vcoul, asxtemp) collapse(3)
     for(int n1 = 0; n1 < nvband; n1++)
     {
          for(int my_igp=0; my_igp<ngpown; ++my_igp)
@@ -126,64 +186,68 @@ copyout(asxtemp[nstart:nend]) collapse(3)
             {
                  int indigp = inv_igp_index[my_igp];
                  int igp = indinv[indigp];
-                 GPUComplex ssxt(0.00, 0.00);
-                 GPUComplex scht(0.00, 0.00);
-                 flagOCC_solver(wx_array[iw], wtilde_array, my_igp, n1, aqsmtemp, aqsntemp, I_eps_array, ssxt, scht, ncouls, igp, number_bands, ngpown);
+                 CustomComplex<double> ssxt(0.00, 0.00);
+                 CustomComplex<double> scht(0.00, 0.00);
+     //            flagOCC_solver(wx_array[iw], wtilde_array, my_igp, n1, aqsmtemp, aqsntemp, I_eps_array, ssxt, scht, ncouls, igp, number_bands, ngpown);
                  asxtemp[iw] += ssxt * occ * vcoul[igp];
            }
          }
     }
 }
 
-void noflagOCC_solver(int number_bands, int ngpown, int ncouls, int *inv_igp_index, int *indinv, double *wx_array, GPUComplex *wtilde_array, GPUComplex *aqsmtemp, GPUComplex *aqsntemp, GPUComplex *I_eps_array, double *vcoul, double *achtemp_re, double *achtemp_im)
+void noflagOCC_solver(int number_bands, int ngpown, int ncouls, int *inv_igp_index, int *indinv, double *wx_array, CustomComplex<double> *wtilde_array, CustomComplex<double> *aqsmtemp, \
+        CustomComplex<double> *aqsntemp, CustomComplex<double> *I_eps_array, double *vcoul, double *achtemp_re, double *achtemp_im, CustomComplex<double> *achtemp, double &elapsed_time)
 {
-    timeval startTimerKernel, endTimerKernel;
-    double achtemp_re0 = 0.00, achtemp_re1 = 0.00, achtemp_re2 = 0.00, \
-        achtemp_im0 = 0.00, achtemp_im1 = 0.00, achtemp_im2 = 0.00;
-#pragma acc enter data copyin(inv_igp_index[0:ngpown], indinv[0:ncouls+1], wtilde_array[0:ngpown*ncouls], wx_array[0:3], aqsmtemp[0:number_bands*ncouls], aqsntemp[0:number_bands*ncouls], I_eps_array[0:ngpown*ncouls], vcoul[0:ncouls])
+    timeval startTimer , endTimer;
+    gettimeofday(&startTimer, NULL);
 
-    gettimeofday(&startTimerKernel, NULL);
-#pragma acc parallel loop gang collapse(2) present(inv_igp_index[0:ngpown], indinv[0:ncouls+1], wtilde_array[0:ngpown*ncouls], wx_array[0:3], aqsmtemp[0:number_bands*ncouls], aqsntemp[0:number_bands*ncouls], I_eps_array[0:ngpown*ncouls], vcoul[0:ncouls]) \
-    copyout(achtemp_re[nstart:nend], achtemp_im[nstart:nend]) \
+    double achtemp_re0 = 0.00, achtemp_re1 = 0.00, achtemp_re2 = 0.00, \
+                         achtemp_im0 = 0.00, achtemp_im1 = 0.00, achtemp_im2 = 0.00;
+
+#pragma acc parallel loop gang present(inv_igp_index, indinv, wtilde_array, wx_array, aqsmtemp, \
+     aqsntemp, I_eps_array, vcoul)\
+    num_gangs(number_bands) vector_length(32) \
     reduction(+:achtemp_re0, achtemp_re1, achtemp_re2, achtemp_im0, achtemp_im1, achtemp_im2)
     for(int n1 = 0; n1<number_bands; ++n1)
     {
+#pragma acc loop vector\
+    reduction(+:achtemp_re0, achtemp_re1, achtemp_re2, achtemp_im0, achtemp_im1, achtemp_im2)
         for(int my_igp=0; my_igp<ngpown; ++my_igp)
         {
-            double achtemp_loc_re0 = 0.00, achtemp_loc_re1 = 0.00, achtemp_loc_re2 = 0.00, \
-                achtemp_loc_im0 = 0.00, achtemp_loc_im1 = 0.00, achtemp_loc_im2 = 0.00;
-
             int indigp = inv_igp_index[my_igp];
             int igp = indinv[indigp];
 
-            double achtemp_re_loc[nend-nstart], achtemp_im_loc[nend-nstart];
-//#pragma acc loop seq
-//            for(int iw = nstart; iw < nend; ++iw) {achtemp_re_loc[iw] = 0.00; achtemp_im_loc[iw] = 0.00;}
+            CustomComplex<double> wdiff(0.00, 0.00), delw(0.00, 0.00);
 
-#pragma acc loop vector\
-    reduction(+:achtemp_loc_re0, achtemp_loc_re1, achtemp_loc_re2, achtemp_loc_im0, achtemp_loc_im1, achtemp_loc_im2)
+            double achtemp_re_loc[nend-nstart], achtemp_im_loc[nend-nstart];
+            for(int iw = nstart; iw < nend; ++iw) {achtemp_re_loc[iw] = 0.00; achtemp_im_loc[iw] = 0.00;}
+
+#pragma acc loop seq
             for(int ig = 0; ig<ncouls; ++ig)
             {
 #pragma acc loop seq
                 for(int iw = nstart; iw < nend; ++iw)
                 {
-                    GPUComplex wdiff = wx_array[iw] - wtilde_array[my_igp*ncouls+ig];
-                    GPUComplex delw = wtilde_array[my_igp*ncouls+ig] * GPUComplex_conj(wdiff) * (1/GPUComplex_real((wdiff * GPUComplex_conj(wdiff))));
-                    GPUComplex sch_array = GPUComplex_conj(aqsmtemp[n1*ncouls+igp]) * aqsntemp[n1*ncouls+ig] * delw * I_eps_array[my_igp*ncouls+ig] * 0.5*vcoul[igp];
-                    double sch_array_re = GPUComplex_real(sch_array);
-                    double sch_array_im = GPUComplex_imag(sch_array);
+                    wdiff = wx_array[iw] - wtilde_array[my_igp*ncouls+ig];
+                    delw = wtilde_array[my_igp*ncouls+ig] * CustomComplex_conj(wdiff) * (1/CustomComplex_real((wdiff * CustomComplex_conj(wdiff))));
+                    CustomComplex<double> sch_array = CustomComplex_conj(aqsmtemp[n1*ncouls+igp]) * aqsntemp[n1*ncouls+ig] * delw * I_eps_array[my_igp*ncouls+ig] * 0.5*vcoul[igp];
+                    double sch_array_re = CustomComplex_real(sch_array);
+                    double sch_array_im = CustomComplex_imag(sch_array);
 
-                    achtemp_re_loc[iw] = sch_array_re;
-                    achtemp_im_loc[iw] = sch_array_im;
+                    achtemp_re_loc[iw] += sch_array_re ;
+                    achtemp_im_loc[iw] += sch_array_im ;
                 }
-                achtemp_loc_re0 += achtemp_re_loc[0];
-                achtemp_loc_re1 += achtemp_re_loc[1];
-                achtemp_loc_re2 += achtemp_re_loc[2];
-                achtemp_loc_im0 += achtemp_im_loc[0];
-                achtemp_loc_im1 += achtemp_im_loc[1];
-                achtemp_loc_im2 += achtemp_im_loc[2];
             }
-#if !reductionVersion
+
+#if reductionVersion
+            achtemp_re0 += achtemp_re_loc[0];
+            achtemp_re1 += achtemp_re_loc[1];
+            achtemp_re2 += achtemp_re_loc[2];
+            achtemp_im0 += achtemp_im_loc[0];
+            achtemp_im1 += achtemp_im_loc[1];
+            achtemp_im2 += achtemp_im_loc[2];
+#else
+#pragma acc loop seq
             for(int iw = nstart; iw < nend; ++iw)
             {
 #pragma acc atomic update
@@ -191,13 +255,6 @@ void noflagOCC_solver(int number_bands, int ngpown, int ncouls, int *inv_igp_ind
 #pragma acc atomic update
                 achtemp_im[iw] += achtemp_im_loc[iw];
             }
-#else
-            achtemp_re0 += achtemp_loc_re0;
-            achtemp_re1 += achtemp_loc_re1;
-            achtemp_re2 += achtemp_loc_re2;
-            achtemp_im0 += achtemp_loc_im0;
-            achtemp_im1 += achtemp_loc_im1;
-            achtemp_im2 += achtemp_loc_im2;
 #endif
         } //ngpown
     } //number_bands
@@ -208,13 +265,15 @@ void noflagOCC_solver(int number_bands, int ngpown, int ncouls, int *inv_igp_ind
     achtemp_im[0] = achtemp_im0;
     achtemp_im[1] = achtemp_im1;
     achtemp_im[2] = achtemp_im2;
+#else
+#pragma acc update self(achtemp_re[nstart:nend], achtemp_im[nstart:nend])
 #endif
-    gettimeofday(&endTimerKernel, NULL);
-    double elapsedTimerKernel = (endTimerKernel.tv_sec - startTimerKernel.tv_sec) +1e-6*(endTimerKernel.tv_usec - startTimerKernel.tv_usec);
+    gettimeofday(&endTimer, NULL);
+    elapsed_time = elapsedTime(startTimer, endTimer);
 
-#pragma acc exit data delete(inv_igp_index[0:ngpown], indinv[0:ncouls+1], wtilde_array[0:ngpown*ncouls], wx_array[0:3], aqsmtemp[0:number_bands*ncouls], aqsntemp[0:number_bands*ncouls], I_eps_array[0:ngpown*ncouls], vcoul[0:ncouls])
+    for(int iw = nstart; iw < nend; ++iw)
+        achtemp[iw] = CustomComplex<double>(achtemp_re[iw], achtemp_im[iw]);
 
-    cout << "********** Kernel Time Taken **********= " << elapsedTimerKernel << " secs" << endl;
 }
 
 int main(int argc, char** argv)
@@ -236,11 +295,7 @@ int main(int argc, char** argv)
     const int ngpown = ncouls / (nodes_per_group * npes);
 
 //Constants that will be used later
-    const double e_lk = 10;
-    const double dw = 1;
-    const double to1 = 1e-6;
     const double limittwo = pow(0.5,2);
-    const double e_n1kq= 6.0;
 
     //OpenMP Printing of threads on Host and Device
     int tid, numThreads;
@@ -253,7 +308,7 @@ int main(int argc, char** argv)
     std::cout << "Number of OpenMP Threads = " << numThreads << endl;
 
     //Printing out the params passed.
-    std::cout << "Sizeof(GPUComplex = " << sizeof(GPUComplex) << " bytes" << std::endl;
+    std::cout << "Sizeof(CustomComplex<double> = " << sizeof(CustomComplex<double>) << " bytes" << std::endl;
     std::cout << "number_bands = " << number_bands \
         << "\t nvband = " << nvband \
         << "\t ncouls = " << ncouls \
@@ -262,30 +317,30 @@ int main(int argc, char** argv)
         << "\t nend = " << nend \
         << "\t nstart = " << nstart << endl;
 
-    GPUComplex expr0(0.00, 0.00);
-    GPUComplex expr(0.5, 0.5);
+    CustomComplex<double> expr0(0.00, 0.00);
+    CustomComplex<double> expr(0.5, 0.5);
     long double memFootPrint = 0.00;
 
     //ALLOCATE statements from fortran gppkernel.
-    GPUComplex *acht_n1_loc = new GPUComplex[number_bands];
-    memFootPrint += number_bands*sizeof(GPUComplex);
+    CustomComplex<double> *acht_n1_loc = new CustomComplex<double>[number_bands];
+    memFootPrint += number_bands*sizeof(CustomComplex<double>);
 
-    GPUComplex *achtemp = new GPUComplex[nend-nstart];
-    GPUComplex *asxtemp = new GPUComplex[nend-nstart];
-    GPUComplex *ssx_array = new GPUComplex[nend-nstart];
-    memFootPrint += 3*(nend-nstart)*sizeof(GPUComplex);
+    CustomComplex<double> *achtemp = new CustomComplex<double>[nend-nstart];
+    CustomComplex<double> *asxtemp = new CustomComplex<double>[nend-nstart];
+    CustomComplex<double> *ssx_array = new CustomComplex<double>[nend-nstart];
+    memFootPrint += 3*(nend-nstart)*sizeof(CustomComplex<double>);
 
-    GPUComplex *aqsmtemp = new GPUComplex[number_bands*ncouls];
-    GPUComplex *aqsntemp = new GPUComplex[number_bands*ncouls];
-    memFootPrint += 2*(number_bands*ncouls)*sizeof(GPUComplex);
+    CustomComplex<double> *aqsmtemp = new CustomComplex<double>[number_bands*ncouls];
+    CustomComplex<double> *aqsntemp = new CustomComplex<double>[number_bands*ncouls];
+    memFootPrint += 2*(number_bands*ncouls)*sizeof(CustomComplex<double>);
 
-    GPUComplex *I_eps_array = new GPUComplex[ngpown*ncouls];
-    GPUComplex *wtilde_array = new GPUComplex[ngpown*ncouls];
-    memFootPrint += 2*(ngpown*ncouls)*sizeof(GPUComplex);
+    CustomComplex<double> *I_eps_array = new CustomComplex<double>[ngpown*ncouls];
+    CustomComplex<double> *wtilde_array = new CustomComplex<double>[ngpown*ncouls];
+    memFootPrint += 2*(ngpown*ncouls)*sizeof(CustomComplex<double>);
 
-    GPUComplex *ssxa = new GPUComplex[ncouls];
+    CustomComplex<double> *ssxa = new CustomComplex<double>[ncouls];
     double *vcoul = new double[ncouls];
-    memFootPrint += ncouls*sizeof(GPUComplex);
+    memFootPrint += ncouls*sizeof(CustomComplex<double>);
     memFootPrint += ncouls*sizeof(double);
 
     int *inv_igp_index = new int[ngpown];
@@ -299,84 +354,39 @@ int main(int argc, char** argv)
     memFootPrint += 2*(nend-nstart)*sizeof(double);
 
     double wx_array[nend-nstart];
-    GPUComplex achstemp;
+    CustomComplex<double> achstemp;
 
     //Print Memory Foot print
     cout << "Memory Foot Print = " << memFootPrint / pow(1024,3) << " GBs" << endl;
 
 
-   for(int i=0; i<number_bands; i++)
-       for(int j=0; j<ncouls; j++)
-       {
-           aqsmtemp[i*ncouls+j] = expr;
-           aqsntemp[i*ncouls+j] = expr;
-       }
-
-   for(int i=0; i<ngpown; i++)
-       for(int j=0; j<ncouls; j++)
-       {
-           I_eps_array[i*ncouls+j] = expr;
-           wtilde_array[i*ncouls+j] = expr;
-       }
-
-   for(int i=0; i<ncouls; i++)
-       vcoul[i] = 1.0;
-
-
-    for(int ig=0; ig < ngpown; ++ig)
-        inv_igp_index[ig] = (ig+1) * ncouls / ngpown;
-
-    //Do not know yet what this array represents
-    for(int ig=0; ig<ncouls; ++ig)
-        indinv[ig] = ig;
-        indinv[ncouls] = ncouls-1;
-
-       for(int iw=nstart; iw<nend; ++iw)
-       {
-           asxtemp[iw] = expr0;
-           achtemp_re[iw] = 0.00;
-           achtemp_im[iw] = 0.00;
-       }
-
-        for(int iw=nstart; iw<nend; ++iw)
-        {
-            wx_array[iw] = e_lk - e_n1kq + dw*((iw+1)-2);
-            if(wx_array[iw] < to1) wx_array[iw] = to1;
-        }
+    //Initailize structures
+    init_structs(number_bands, ngpown, ncouls, aqsmtemp, aqsntemp, I_eps_array, wtilde_array, vcoul, inv_igp_index, indinv, asxtemp, achtemp_re, achtemp_im, wx_array);
 
     //Start the timer before the work begins.
     timeval startTimer, endTimer;
     gettimeofday(&startTimer, NULL);
+    double elapsed_noFlagOCC = 0.00;
 
     //0-nvband iterations
-//    till_nvband(number_bands, nvband, ngpown, ncouls, asxtemp, wx_array, wtilde_array, aqsmtemp, aqsntemp, I_eps_array, inv_igp_index, indinv, vcoul);
+    till_nvband(number_bands, nvband, ngpown, ncouls, asxtemp, wx_array, wtilde_array, aqsmtemp, aqsntemp, I_eps_array, inv_igp_index, indinv, vcoul);
 
     //reduction on achstemp
-#pragma omp parallel for
-    for(int n1 = 0; n1<number_bands; ++n1)
-        reduce_achstemp(n1, number_bands, inv_igp_index, ncouls,aqsmtemp, aqsntemp, I_eps_array, achstemp, indinv, ngpown, vcoul, numThreads);
+    reduce_achstemp(number_bands, inv_igp_index, ncouls,aqsmtemp, aqsntemp, I_eps_array, achstemp, indinv, ngpown, vcoul, numThreads);
 
     //main-loop with output on achtemp divide among achtemp_re && achtemp_im
-    noflagOCC_solver(number_bands, ngpown, ncouls, inv_igp_index, indinv, wx_array, wtilde_array, aqsmtemp, aqsntemp, I_eps_array, vcoul, achtemp_re, achtemp_im);
+    noflagOCC_solver(number_bands, ngpown, ncouls, inv_igp_index, indinv, wx_array, wtilde_array, aqsmtemp, aqsntemp, I_eps_array, vcoul, achtemp_re, achtemp_im, achtemp, \
+            elapsed_noFlagOCC);
 
     //Time Taken
     gettimeofday(&endTimer, NULL);
     double elapsedTimer = (endTimer.tv_sec - startTimer.tv_sec) +1e-6*(endTimer.tv_usec - startTimer.tv_usec);
 
-//    printf(" \n Final achstemp\n");
-//    achstemp.print();
-
     printf("\n Final achtemp\n");
+    achtemp[0].print();
 
-    for(int iw=nstart; iw<nend; ++iw)
-    {
-        GPUComplex tmp(achtemp_re[iw], achtemp_im[iw]);
-        achtemp[iw] = tmp;
-//        achtemp[iw].print();
-    }
-        achtemp[0].print();
-
-    cout << "********** Time Taken **********= " << elapsedTimer << " secs" << endl;
+    cout << "********** noFlagOCC Time Taken **********= " << elapsed_noFlagOCC << " secs" << endl;
+    cout << "********** Kernel Time Taken **********= " << elapsedTimer << " secs" << endl;
 
     free(acht_n1_loc);
     free(achtemp);
