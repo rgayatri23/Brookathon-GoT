@@ -19,11 +19,17 @@
 //}
 //#endif
 
+__global__ void print_arr(double *real, double *imag) {
+    printf("KERNEL: (%lf, %lf)\n", *real, *imag);
+}
+
     template<int T>
-__global__ void achsDtemp_solver_1D(int number_bands, int ngpown, int ncouls, int *inv_igp_index, int *indinv, GPUComplex *aqsntemp, GPUComplex *aqsmtemp, GPUComplex *I_epsR_array, REAL *vcoul, REAL *achsDtemp_re, REAL *achsDtemp_im)
+__global__ void achsDtemp_solver_1D(int number_bands, int ngpown, int ncouls, int *inv_igp_index, int *indinv, GPUComplex *aqsntemp, GPUComplex *aqsmtemp, GPUComplex *I_epsR_array, REAL *vcoul, GPUComplex *achsDtemp_reduce)
 {
     const int n1 = blockIdx.x;
+    /* const int idx = blockDim.x*blockIdx.x+threadIdx.x; */
     int numBlk = (ncouls+blockDim.x-1)/blockDim.x;
+
     typedef cub::BlockReduce<GPUComplex, T> BlockReduce;
     GPUComplex schsDtemp_red(0., 0.);
     __shared__ typename BlockReduce::TempStorage temp_storage;
@@ -39,14 +45,13 @@ __global__ void achsDtemp_solver_1D(int number_bands, int ngpown, int ncouls, in
         {
             int ig = blk * blockDim.x + threadIdx.x;
             if (ig< ncouls)
-                schsDtemp = schsDtemp - aqsntemp[n1*ncouls + ig] * thrust::conj(aqsmtemp[n1*ncouls + igp]) * I_epsR_array[1*ngpown*ncouls + my_igp*ncouls + ig]* vcoul[ig] * 0.5;
+                schsDtemp = schsDtemp - aqsntemp[n1*ncouls + ig] * thrust::conj(aqsmtemp[n1*ncouls + igp]) * I_epsR_array[1*ngpown*ncouls + my_igp*ncouls + ig]* vcoul[igp] * 0.5;
         }
     }
     schsDtemp_red = BlockReduce(temp_storage).Sum(schsDtemp);
 
-    if(threadIdx.x==0){
-        atomicAdd2(achsDtemp_re, schsDtemp_red.real());
-        atomicAdd2(achsDtemp_im, schsDtemp_red.imag());
+    if (threadIdx.x == 0) {
+        achsDtemp_reduce[blockIdx.x] = schsDtemp_red;
     }
 }
 

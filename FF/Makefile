@@ -17,6 +17,10 @@ endif
 OBJ1 = $(SRC1:.cpp=.o)
 OBJ2 = $(SRC2:.cu=.o)
 
+all: $(EXE)
+
+debug: CXXFLAGS+=-DCUDA_ERROR_CHECK
+
 $(EXE): $(OBJ1) $(OBJ2) 
 	$(CXX) $(OBJ1) $(OBJ2) -o $(EXE) $(LINKFLAGS)
 

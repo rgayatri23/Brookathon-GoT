@@ -4,7 +4,7 @@
 #include "cub/cub.cuh"
 #include "kernels.cuh"
 
-//#define __Kernel_2D
+/* #define __Kernel_2D */
 
 __device__ void d_compute_fact(REAL wx, int nFreq, REAL *dFreqGrid, REAL &fact1, REAL &fact2, int &ifreq, int loop, bool flag_occ)
 {
@@ -470,7 +470,7 @@ __global__ void achDtemp_cor_solver_1D_v1(int number_bands, int nvband, int nfre
 
 
 
-void d_achsDtemp_Kernel(int number_bands, int ngpown, int ncouls, int *inv_igp_index, int *indinv, GPUComplex *aqsntemp, GPUComplex *aqsmtemp, GPUComplex *I_epsR_array, REAL *vcoul, REAL *achsDtemp_re, REAL *achsDtemp_im)
+void d_achsDtemp_Kernel(int number_bands, int ngpown, int ncouls, int *inv_igp_index, int *indinv, GPUComplex *aqsntemp, GPUComplex *aqsmtemp, GPUComplex *I_epsR_array, REAL *vcoul, GPUComplex *achsDtemp)
 {
 
 #ifdef __Kernel_2D
@@ -484,8 +484,27 @@ void d_achsDtemp_Kernel(int number_bands, int ngpown, int ncouls, int *inv_igp_i
 #else
 #warning "Using 1D kernels"
     dim3 numBlocks(number_bands, 1, 1);
-    const int numThreadsPerBlock=128;
-    achsDtemp_solver_1D<numThreadsPerBlock><<<numBlocks, numThreadsPerBlock>>>(number_bands, ngpown, ncouls, inv_igp_index, indinv, aqsntemp, aqsmtemp, I_epsR_array, vcoul, achsDtemp_re, achsDtemp_im);
+    const int numThreadsPerBlock=256;
+
+    /* const size_t totalThreads = numBlocks.x*numThreadsPerBlock;    */
+    GPUComplex *achsDtemp_reduce;
+    
+    void *d_temp_storage = NULL;
+    size_t temp_storage_bytes = 0;
+    
+    // Get reduction size
+    gpuErrchk( cudaMalloc(&achsDtemp_reduce, numBlocks.x*sizeof(GPUComplex)) );
+    cub::DeviceReduce::Sum(d_temp_storage, temp_storage_bytes, achsDtemp_reduce, achsDtemp, numBlocks.x);
+    gpuErrchk( cudaMalloc(&d_temp_storage, temp_storage_bytes) );
+    
+
+    achsDtemp_solver_1D<numThreadsPerBlock><<<numBlocks, numThreadsPerBlock>>>(number_bands, ngpown, ncouls, inv_igp_index, indinv, aqsntemp, aqsmtemp, I_epsR_array, vcoul, achsDtemp_reduce);
+    
+    // Reduce
+    cub::DeviceReduce::Sum(d_temp_storage, temp_storage_bytes, achsDtemp_reduce, achsDtemp, numBlocks.x);
+
+    gpuErrchk( cudaFree(achsDtemp_reduce) );
+    cudaFree(d_temp_storage);
 #endif
 }
 
@@ -498,7 +517,7 @@ void d_achsDtemp_mixed_Kernel(int number_bands, int ngpown, int ncouls, int *inv
 
 void d_asxDtemp_Kernel(int nvband, int nfreqeval, int ncouls, int ngpown, int nFreq, REAL freqevalmin, REAL freqevalstep, REAL occ, REAL *ekq, REAL *dFreqGrid, int *inv_igp_index, int *indinv, GPUComplex *aqsmtemp, GPUComplex *aqsntemp, REAL *vcoul, GPUComplex *I_epsR_array, GPUComplex *I_epsA_array, REAL *asxDtemp_re, REAL *asxDtemp_im)
 {
-#if __Kernel_2D
+#ifdef __Kernel_2D
     dim3 numBlocks(nfreqeval, nvband);
     int numThreadsPerBlock=8;
 
@@ -513,7 +532,7 @@ void d_asxDtemp_Kernel(int nvband, int nfreqeval, int ncouls, int ngpown, int nF
 
 void d_achDtemp_cor_Kernel(int number_bands, int nvband, int nfreqeval, int ncouls, int ngpown, int nFreq, REAL freqevalmin, REAL freqevalstep, REAL *ekq, REAL *dFreqGrid, int *inv_igp_index, int *indinv, GPUComplex *aqsmtemp, GPUComplex *aqsntemp, REAL *vcoul, GPUComplex *I_epsR_array, GPUComplex *I_epsA_array, GPUComplex *ach2Dtemp, REAL *achDtemp_cor_re, REAL *achDtemp_cor_im, GPUComplex *achDtemp_corb)
 {
-#if __Kernel_2D
+#ifdef __Kernel_2D
     //    dim3 numBlocks(number_bands, nfreqeval);
     dim3 numBlocks(nfreqeval, number_bands);
     int numThreadsPerBlock=8;
