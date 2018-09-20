@@ -322,13 +322,9 @@ int main(int argc, char** argv)
     long double memFootPrint = 0.00;
 
     //ALLOCATE statements from fortran gppkernel.
-    CustomComplex<double> *acht_n1_loc = new CustomComplex<double>[number_bands];
-    memFootPrint += number_bands*sizeof(CustomComplex<double>);
-
     CustomComplex<double> *achtemp = new CustomComplex<double>[nend-nstart];
     CustomComplex<double> *asxtemp = new CustomComplex<double>[nend-nstart];
-    CustomComplex<double> *ssx_array = new CustomComplex<double>[nend-nstart];
-    memFootPrint += 3*(nend-nstart)*sizeof(CustomComplex<double>);
+    memFootPrint += 2*(nend-nstart)*sizeof(CustomComplex<double>);
 
     CustomComplex<double> *aqsmtemp = new CustomComplex<double>[number_bands*ncouls];
     CustomComplex<double> *aqsntemp = new CustomComplex<double>[number_bands*ncouls];
@@ -338,9 +334,7 @@ int main(int argc, char** argv)
     CustomComplex<double> *wtilde_array = new CustomComplex<double>[ngpown*ncouls];
     memFootPrint += 2*(ngpown*ncouls)*sizeof(CustomComplex<double>);
 
-    CustomComplex<double> *ssxa = new CustomComplex<double>[ncouls];
     double *vcoul = new double[ncouls];
-    memFootPrint += ncouls*sizeof(CustomComplex<double>);
     memFootPrint += ncouls*sizeof(double);
 
     int *inv_igp_index = new int[ngpown];
@@ -388,7 +382,6 @@ int main(int argc, char** argv)
     cout << "********** noFlagOCC Time Taken **********= " << elapsed_noFlagOCC << " secs" << endl;
     cout << "********** Kernel Time Taken **********= " << elapsedTimer << " secs" << endl;
 
-    free(acht_n1_loc);
     free(achtemp);
     free(aqsmtemp);
     free(aqsntemp);
@@ -396,7 +389,6 @@ int main(int argc, char** argv)
     free(wtilde_array);
     free(asxtemp);
     free(vcoul);
-    free(ssx_array);
     free(inv_igp_index);
     free(indinv);
 

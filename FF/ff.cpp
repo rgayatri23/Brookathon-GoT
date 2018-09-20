@@ -562,7 +562,7 @@ int main(int argc, char** argv)
     CustomComplex<double> *achDtemp_cor = new CustomComplex<double>[nfreqeval];
     CustomComplex<double> *asxDtemp = new CustomComplex<double>[nfreqeval];
     CustomComplex<double> *dFreqBrd = new CustomComplex<double>[nFreq];
-    mem_alloc += (nfreqeval * 7 * sizeof(CustomComplex<double>));
+    mem_alloc += (nfreqeval * 3 * sizeof(CustomComplex<double>));
     mem_alloc += (nFreq * sizeof(CustomComplex<double>)) ;
 
     CustomComplex<double> *schDt_matrix = new CustomComplex<double>[number_bands * nFreq];
@@ -576,6 +576,7 @@ int main(int argc, char** argv)
     double *achDtemp_cor_im = new double[nfreqeval];
     double *asxDtemp_re = new double[nfreqeval];
     double *asxDtemp_im = new double[nfreqeval];
+    mem_alloc += nfreqeval * 4 * sizeof(double);
 
 
     init_structs(nfreqeval, nFreq, ngpown, ncouls, number_bands, inv_igp_index, indinv, ekq, pref, aqsmtemp, aqsntemp, \
