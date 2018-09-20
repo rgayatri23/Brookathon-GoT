@@ -7,10 +7,11 @@
 
 #Job Script for ff-OpenACC on google cloud
 exec=ff
-input="1502 199 334 66 15 10"
+input="15023 1998 33401 66 15 10"
 pwd; hostname; date
 #export PGI_ACC_TIME=1
 ./${exec}.ex ${input}
+#export PGI_ACC_SYNCHRONUS=1
 #pgprof -o OpenACC-ff-pgprof.out ./${exec}.ex ${input}
 #nvprof --metrics all ./${exec}.ex ${input}
 #nvprof --kernels "_Z16achsDtemp_KerneliiiiPiS_P13CustomComplexIdES2_S2_S2_PdRS1_Rd" --metrics all ./${exec}.ex ${input}
