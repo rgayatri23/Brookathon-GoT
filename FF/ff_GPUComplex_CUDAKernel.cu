@@ -407,7 +407,7 @@ void d_achsDtemp_Kernel(int number_bands, int ngpown, int ncouls, int *inv_igp_i
 #warning "Using 2D kernels"
     const int ntx=8, nty=128;
     dim3 numThreads(ntx, nty);
-    dim3 numBlocks( int(ceil(size_t(ncouls)/REAL(numThreads.x))), int(ceil(size_t(number_bands)/REAL(numThreads.y))) );
+    dim3 numBlocks( (ncouls+numThreads.x-1)/numThreads.x, (ncouls+numThreads.x-1)/numThreads.x );
 
     achsDtemp_solver_2D<ntx, nty><<<numBlocks, numThreads>>>(number_bands, ngpown, ncouls, inv_igp_index, indinv, aqsntemp, aqsmtemp, I_epsR_array, vcoul, achsDtemp_re, achsDtemp_im);
     gpuErrchk(cudaPeekAtLastError());
