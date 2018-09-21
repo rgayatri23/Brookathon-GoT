@@ -354,60 +354,50 @@ int main(int argc, char** argv)
     REAL pref_zb = 0.5 / 3.14;
 
 //Start to allocate the data structures;
-    int *inv_igp_index = new int[ngpown];
-    int *indinv = new int[ncouls];
-    REAL *vcoul = new REAL[ncouls];
-    REAL *ekq = new REAL[number_bands];
-    REAL *dFreqGrid = new REAL[nFreq];
+    // int *inv_igp_index = new int[ngpown];
+    // int *indinv = new int[ncouls];
+    // REAL *vcoul = new REAL[ncouls];
+    // REAL *ekq = new REAL[number_bands];
+    // REAL *dFreqGrid = new REAL[nFreq];
     REAL *pref = new REAL[nFreq];
     long double mem_alloc = 0.00;
 
-    GPUComplex *aqsntemp = new GPUComplex[number_bands * ncouls];
-    mem_alloc += (number_bands * ncouls * sizeof(GPUComplex));
+    // GPUComplex *aqsntemp = new GPUComplex[number_bands * ncouls];
+    // mem_alloc += (number_bands * ncouls * sizeof(GPUComplex));
+    //
+    // GPUComplex *aqsmtemp= new GPUComplex[number_bands * ncouls];
+    // mem_alloc += (number_bands * ncouls * sizeof(GPUComplex));
 
-    GPUComplex *aqsmtemp= new GPUComplex[number_bands * ncouls];
-    mem_alloc += (number_bands * ncouls * sizeof(GPUComplex));
+    // GPUComplex *I_epsR_array = new GPUComplex[nFreq * ngpown * ncouls];
+    // mem_alloc += (nFreq * ngpown * ncouls * sizeof(GPUComplex));
+    //
+    // GPUComplex *I_epsA_array = new GPUComplex[nFreq * ngpown * ncouls];
+    // mem_alloc += (nFreq * ngpown * ncouls * sizeof(GPUComplex));
 
-    GPUComplex *I_epsR_array = new GPUComplex[nFreq * ngpown * ncouls];
-    mem_alloc += (nFreq * ngpown * ncouls * sizeof(GPUComplex));
-
-    GPUComplex *I_epsA_array = new GPUComplex[nFreq * ngpown * ncouls];
-    mem_alloc += (nFreq * ngpown * ncouls * sizeof(GPUComplex));
-
-    GPUComplex *schDi = new GPUComplex[nfreqeval];
-    GPUComplex *sch2Di = new GPUComplex[nfreqeval];
-    GPUComplex *schDi_cor = new GPUComplex[nfreqeval];
-    GPUComplex *schDi_corb = new GPUComplex[nfreqeval];
-    GPUComplex *achDtemp = new GPUComplex[nfreqeval];
-    GPUComplex *ach2Dtemp = new GPUComplex[nfreqeval];
+    // GPUComplex *schDi = new GPUComplex[nfreqeval];
+    // GPUComplex *sch2Di = new GPUComplex[nfreqeval];
+    // GPUComplex *schDi_cor = new GPUComplex[nfreqeval];
+    // GPUComplex *schDi_corb = new GPUComplex[nfreqeval];
+    // GPUComplex *achDtemp = new GPUComplex[nfreqeval];
+    // GPUComplex *ach2Dtemp = new GPUComplex[nfreqeval];
     GPUComplex *achDtemp_cor = new GPUComplex[nfreqeval];
-    GPUComplex *achDtemp_corb = new GPUComplex[nfreqeval];
+    // GPUComplex *achDtemp_corb = new GPUComplex[nfreqeval];
     GPUComplex *asxDtemp = new GPUComplex[nfreqeval];
     GPUComplex *dFreqBrd = new GPUComplex[nFreq];
-    mem_alloc += (nfreqeval * 9 * sizeof(GPUComplex));
-    mem_alloc += (nFreq * sizeof(GPUComplex)) ;
-
-    GPUComplex *schDt_matrix = new GPUComplex[number_bands * nFreq];
-    mem_alloc += (nFreq * number_bands * sizeof(GPUComplex));
+    // mem_alloc += (nfreqeval * 9 * sizeof(GPUComplex));
+    // mem_alloc += (nFreq * sizeof(GPUComplex)) ;
+    //
+    // GPUComplex *schDt_matrix = new GPUComplex[number_bands * nFreq];
+    // mem_alloc += (nFreq * number_bands * sizeof(GPUComplex));
 
 
     //Variables used for Cuda:
-    //single prec
-    REAL *asxDtemp_re = new REAL[nfreqeval];
-    REAL *asxDtemp_im = new REAL[nfreqeval];
-    REAL *achDtemp_cor_re = new REAL[nfreqeval];
-    REAL *achDtemp_cor_im = new REAL[nfreqeval];
-    //double prec
-    double *asxDtemp_reD = new double[nfreqeval];
-    double *asxDtemp_imD = new double[nfreqeval];
-    double *achDtemp_cor_reD = new double[nfreqeval];
-    double *achDtemp_cor_imD = new double[nfreqeval];
+    // REAL *asxDtemp_re = new REAL[nfreqeval];
+    // REAL *asxDtemp_im = new REAL[nfreqeval];
+    // REAL *achDtemp_cor_re = new REAL[nfreqeval];
+    // REAL *achDtemp_cor_im = new REAL[nfreqeval];
 
 #if CUDA_VER
-    //real prec
-    REAL *achsDtemp_re = new REAL;
-    REAL *achsDtemp_im = new REAL;
-    //double
     double *achsDtemp_reD = new double;
     double *achsDtemp_imD = new double;
     //Allocated Memory on Device
@@ -441,8 +431,10 @@ int main(int argc, char** argv)
     //Output
     //single prec
     CudaSafeCall(cudaMallocManaged((void**) &d_achsDtemp, sizeof(GPUComplex)));
-    CudaSafeCall(cudaMallocManaged((void**) &d_achsDtemp_re, sizeof(REAL)));
-    CudaSafeCall(cudaMallocManaged((void**) &d_achsDtemp_im, sizeof(REAL)));
+    // CudaSafeCall(cudaMallocManaged((void**) &d_achsDtemp_re, sizeof(REAL)));
+    // CudaSafeCall(cudaMallocManaged((void**) &d_achsDtemp_im, sizeof(REAL)));
+    CudaSafeCall(cudaMallocManaged((void**) &d_achsDtemp_reD, sizeof(double)));
+    CudaSafeCall(cudaMallocManaged((void**) &d_achsDtemp_imD, sizeof(double)));
     CudaSafeCall(cudaMallocManaged((void**) &d_asxDtemp_re, nfreqeval*sizeof(REAL)));
     CudaSafeCall(cudaMallocManaged((void**) &d_asxDtemp_im, nfreqeval*sizeof(REAL)));
     //double prec
@@ -461,28 +453,28 @@ int main(int argc, char** argv)
 
     //Initialize the data structures
     for(int ig = 0; ig < ngpown; ++ig)
-        inv_igp_index[ig] = ig;
+        d_inv_igp_index[ig] = ig;
 
     for(int ig = 0; ig < ncouls; ++ig)
-        indinv[ig] = ig;
+        d_indinv[ig] = ig;
 
     for(int i=0; i<number_bands; ++i)
     {
-        ekq[i] = dw;
+        d_ekq[i] = dw;
         dw += 1.00;
 
         for(int j=0; j<ncouls; ++j)
         {
-            aqsmtemp[i*ncouls+j] = expr;
-            aqsntemp[i*ncouls+j] = expr;
+            d_aqsmtemp[i*ncouls+j] = expr;
+            d_aqsntemp[i*ncouls+j] = expr;
         }
 
         for(int j=0; j<nFreq; ++j)
-            schDt_matrix[i*nFreq + j] = expr0;
+            d_schDt_matrix[i*nFreq + j] = expr0;
     }
 
     for(int i=0; i<ncouls; ++i)
-        vcoul[i] = 1.00;
+        d_vcoul[i] = 1.00;
 
     for(int i=0; i<nFreq; ++i)
     {
@@ -490,8 +482,8 @@ int main(int argc, char** argv)
         {
             for(int k=0; k<ncouls; ++k)
             {
-                I_epsR_array[i*ngpown*ncouls + j * ncouls + k] = expR;
-                I_epsA_array[i*ngpown*ncouls + j * ncouls + k] = expA;
+                d_I_epsR_array[i*ngpown*ncouls + j * ncouls + k] = expR;
+                d_I_epsA_array[i*ngpown*ncouls + j * ncouls + k] = expA;
             }
         }
     }
@@ -500,14 +492,14 @@ int main(int argc, char** argv)
     for(int ijk = 0; ijk < nFreq; ++ijk)
     {
         dFreqBrd[ijk] = exprP1;
-        dFreqGrid[ijk] = dw;
+        d_dFreqGrid[ijk] = dw;
         dw += 2.00;
     }
 
     for(int ifreq = 0; ifreq < nFreq; ++ifreq)
     {
         if(ifreq < nFreq-1)
-            pref[ifreq] = (dFreqGrid[ifreq+1] - dFreqGrid[ifreq]) / 3.14;
+            pref[ifreq] = (d_dFreqGrid[ifreq+1] - d_dFreqGrid[ifreq]) / 3.14;
             else
                 pref[ifreq] = pref[ifreq-1];
 
@@ -516,40 +508,37 @@ int main(int argc, char** argv)
 
     for(int i = 0; i < nfreqeval; ++i)
     {
-        schDi[i] = expr0;
-        sch2Di[i] = expr0;
-        schDi_corb[i] = expr0;
-        schDi_cor[i] = expr0;
-        asxDtemp[i] = expr0;
-        achDtemp[i] = expr0;
-        ach2Dtemp[i] = expr0;
-        achDtemp_cor[i] = expr0;
-        achDtemp_corb[i] = expr0;
-        achDtemp_cor_re[i] = 0.00;
-        achDtemp_cor_im[i] = 0.00;
-        achDtemp_cor_reD[i] = 0.00;
-        achDtemp_cor_imD[i] = 0.00;
+        // d_schDi[i] = expr0;
+        // d_sch2Di[i] = expr0;
+        // d_schDi_corb[i] = expr0;
+        // d_schDi_cor[i] = expr0;
+        // d_asxDtemp[i] = expr0;
+        // d_achDtemp[i] = expr0;
+        d_ach2Dtemp[i] = expr0;
+        // d_achDtemp_cor[i] = expr0;
+        d_achDtemp_corb[i] = expr0;
+        d_achDtemp_cor_re[i] = 0.00;
+        d_achDtemp_cor_im[i] = 0.00;
     }
     GPUComplex *ssxDittt = new GPUComplex;
 
 #if CUDA_VER
     //Copy data-strudtures value from host to device
-    CudaSafeCall(cudaMemcpy(d_aqsmtemp, aqsmtemp, number_bands*ncouls*sizeof(GPUComplex), cudaMemcpyHostToDevice));
-    CudaSafeCall(cudaMemcpy(d_aqsntemp, aqsntemp, number_bands*ncouls*sizeof(GPUComplex), cudaMemcpyHostToDevice));
-    CudaSafeCall(cudaMemcpy(d_I_epsR_array, I_epsR_array, nFreq*ngpown*ncouls*sizeof(GPUComplex), cudaMemcpyHostToDevice));
-    CudaSafeCall(cudaMemcpy(d_I_epsA_array, I_epsA_array, nFreq*ngpown*ncouls*sizeof(GPUComplex), cudaMemcpyHostToDevice));
-    CudaSafeCall(cudaMemcpy(d_schDt_matrix, schDt_matrix, number_bands*nFreq*sizeof(GPUComplex), cudaMemcpyHostToDevice));
-    CudaSafeCall(cudaMemcpy(d_indinv, indinv, ncouls*sizeof(int), cudaMemcpyHostToDevice));
-    CudaSafeCall(cudaMemcpy(d_inv_igp_index, inv_igp_index, ngpown*sizeof(int), cudaMemcpyHostToDevice));
-    CudaSafeCall(cudaMemcpy(d_vcoul, vcoul, ncouls*sizeof(REAL), cudaMemcpyHostToDevice));
-    CudaSafeCall(cudaMemcpy(d_dFreqGrid, dFreqGrid, nFreq*sizeof(REAL), cudaMemcpyHostToDevice));
-    CudaSafeCall(cudaMemcpy(d_ekq, ekq, number_bands*sizeof(REAL), cudaMemcpyHostToDevice));
-    CudaSafeCall(cudaMemcpy(d_achDtemp_corb, achDtemp_corb, nfreqeval*sizeof(GPUComplex), cudaMemcpyHostToDevice));
-    CudaSafeCall(cudaMemcpy(d_achDtemp_cor_re, achDtemp_cor_re, nfreqeval*sizeof(REAL), cudaMemcpyHostToDevice));
-    CudaSafeCall(cudaMemcpy(d_achDtemp_cor_im, achDtemp_cor_im, nfreqeval*sizeof(REAL), cudaMemcpyHostToDevice));
-    //double prec
-    CudaSafeCall(cudaMemcpy(d_achDtemp_cor_reD, achDtemp_cor_reD, nfreqeval*sizeof(double), cudaMemcpyHostToDevice));
-    CudaSafeCall(cudaMemcpy(d_achDtemp_cor_imD, achDtemp_cor_imD, nfreqeval*sizeof(double), cudaMemcpyHostToDevice));
+    CudaSafeCall(cudaMemPrefetchAsync(d_aqsmtemp, number_bands*ncouls*sizeof(GPUComplex), 0, 0));
+    CudaSafeCall(cudaMemPrefetchAsync(d_aqsntemp, number_bands*ncouls*sizeof(GPUComplex), 0, 0));
+    CudaSafeCall(cudaMemPrefetchAsync(d_I_epsR_array, nFreq*ngpown*ncouls*sizeof(GPUComplex), 0, 0));
+    CudaSafeCall(cudaMemPrefetchAsync(d_I_epsA_array, nFreq*ngpown*ncouls*sizeof(GPUComplex), 0, 0));
+    CudaSafeCall(cudaMemPrefetchAsync(d_schDt_matrix, number_bands*nFreq*sizeof(GPUComplex), 0, 0));
+    CudaSafeCall(cudaMemPrefetchAsync(d_indinv, ncouls*sizeof(int), 0, 0));
+    CudaSafeCall(cudaMemPrefetchAsync(d_inv_igp_index, ngpown*sizeof(int), 0, 0));
+    CudaSafeCall(cudaMemPrefetchAsync(d_vcoul, ncouls*sizeof(REAL), 0, 0));
+    CudaSafeCall(cudaMemPrefetchAsync(d_dFreqGrid, nFreq*sizeof(REAL), 0, 0));
+    CudaSafeCall(cudaMemPrefetchAsync(d_ekq, number_bands*sizeof(REAL), 0, 0));
+    CudaSafeCall(cudaMemPrefetchAsync(d_achDtemp_corb, nfreqeval*sizeof(GPUComplex), 0, 0));
+    CudaSafeCall(cudaMemPrefetchAsync(d_achDtemp_cor_re, nfreqeval*sizeof(REAL), 0, 0));
+    CudaSafeCall(cudaMemPrefetchAsync(d_achDtemp_cor_im, nfreqeval*sizeof(REAL), 0, 0));
+    
+    cudaDeviceSynchronize();
 #endif
 
     gettimeofday(&end_preKernel, NULL);
@@ -563,11 +552,10 @@ int main(int argc, char** argv)
     gettimeofday(&start_achsDtemp_Kernel, NULL);
 #if !CUDA_VER
     GPUComplex achsDtemp(0.00, 0.00);
-    achsDtemp_Kernel(number_bands, ngpown, ncouls, inv_igp_index, indinv, aqsntemp, aqsmtemp, I_epsR_array, vcoul, achsDtemp);
+    achsDtemp_Kernel(number_bands, ngpown, ncouls, inv_igp_index, indinv, aqsntemp, aqsmtemp, d_I_epsR_array, vcoul, achsDtemp);
 #else
-    d_achsDtemp_Kernel(number_bands, ngpown, ncouls, d_inv_igp_index, d_indinv, d_aqsntemp, d_aqsmtemp, d_I_epsR_array, d_vcoul, d_achsDtemp_re, d_achsDtemp_im);
+    d_achsDtemp_Kernel(number_bands, ngpown, ncouls, d_inv_igp_index, d_indinv, d_aqsntemp, d_aqsmtemp, d_I_epsR_array, d_vcoul, d_achsDtemp);
     cudaDeviceSynchronize();
-    CudaSafeCall(cudaMemcpy(achsDtemp_re, d_achsDtemp_re, sizeof(REAL), cudaMemcpyDeviceToHost));
 #endif
     gettimeofday(&end_achsDtemp_Kernel, NULL);
     
@@ -575,7 +563,7 @@ int main(int argc, char** argv)
     gettimeofday(&start_achsDtemp_mixed_Kernel, NULL);
 #if !CUDA_VER
     GPUComplexD achsDtempD(0.00, 0.00);
-    achsDtemp_mixed_Kernel(number_bands, ngpown, ncouls, inv_igp_index, indinv, aqsntemp, aqsmtemp, I_epsR_array, vcoul, achsDtempD);
+    achsDtemp_mixed_Kernel(number_bands, ngpown, ncouls, inv_igp_index, indinv, aqsntemp, aqsmtemp, d_I_epsR_array, vcoul, achsDtempD);
 #else
     d_achsDtemp_mixed_Kernel(number_bands, ngpown, ncouls, d_inv_igp_index, d_indinv, d_aqsntemp, d_aqsmtemp, d_I_epsR_array, d_vcoul, d_achsDtemp_reD, d_achsDtemp_imD);
     cudaDeviceSynchronize();
@@ -586,7 +574,7 @@ int main(int argc, char** argv)
     /***********asxDtemp Kernel ****************/
     gettimeofday(&start_asxDtemp_Kernel, NULL);
 #if !CUDA_VER
-    asxDtemp_Kernel(nvband, nfreqeval, ncouls, ngpown, nFreq, freqevalmin, freqevalstep, occ, ekq, dFreqGrid, inv_igp_index, indinv, aqsmtemp, aqsntemp, vcoul, I_epsR_array, I_epsA_array, asxDtemp);
+    asxDtemp_Kernel(nvband, nfreqeval, ncouls, ngpown, nFreq, freqevalmin, freqevalstep, occ, ekq, dFreqGrid, inv_igp_index, indinv, aqsmtemp, aqsntemp, vcoul, d_I_epsR_array, d_I_epsA_array, asxDtemp);
 #else
     d_asxDtemp_Kernel(nvband, nfreqeval, ncouls, ngpown, nFreq, freqevalmin, freqevalstep, occ, d_ekq, d_dFreqGrid, d_inv_igp_index, d_indinv, d_aqsmtemp, d_aqsntemp, d_vcoul, d_I_epsR_array, d_I_epsA_array, d_asxDtemp_re, d_asxDtemp_im);
     cudaDeviceSynchronize();
@@ -594,13 +582,13 @@ int main(int argc, char** argv)
     gettimeofday(&end_asxDtemp_Kernel, NULL);
 
 //    /***********achDtemp Kernel ****************/
-    achDtemp_Kernel(number_bands, nvband, nfreqeval, ncouls, ngpown, nFreq, freqevalmin, freqevalstep, ekq, pref_zb, pref, dFreqGrid, dFreqBrd, schDt_matrix, schDi, schDi_cor, sch2Di, asxDtemp);
+    // achDtemp_Kernel(number_bands, nvband, nfreqeval, ncouls, ngpown, nFreq, freqevalmin, freqevalstep, ekq, pref_zb, pref, dFreqGrid, dFreqBrd, schDt_matrix, schDi, schDi_cor, sch2Di, asxDtemp);
 
     /***********achDtemp_cor Kernel ****************/
     auto startTimer_achDtemp_cor = std::chrono::high_resolution_clock::now();
     gettimeofday(&start_achDtemp_cor_Kernel, NULL);
 #if !CUDA_VER
-    achDtemp_cor_Kernel(number_bands, nvband, nfreqeval, ncouls, ngpown, nFreq, freqevalmin, freqevalstep, ekq, dFreqGrid, inv_igp_index, indinv, aqsmtemp, aqsntemp, vcoul, I_epsR_array, I_epsA_array, schDi_cor, schDi_corb, sch2Di, ach2Dtemp, achDtemp_cor, achDtemp_corb);
+    achDtemp_cor_Kernel(number_bands, nvband, nfreqeval, ncouls, ngpown, nFreq, freqevalmin, freqevalstep, ekq, dFreqGrid, inv_igp_index, indinv, aqsmtemp, aqsntemp, vcoul, d_I_epsR_array, d_I_epsA_array, schDi_cor, schDi_corb, sch2Di, ach2Dtemp, achDtemp_cor, achDtemp_corb);
 #else
     d_achDtemp_cor_Kernel(number_bands, nvband, nfreqeval, ncouls, ngpown, nFreq, freqevalmin, freqevalstep, d_ekq, d_dFreqGrid, d_inv_igp_index, d_indinv, d_aqsmtemp, d_aqsntemp, d_vcoul, d_I_epsR_array, d_I_epsA_array, d_ach2Dtemp, d_achDtemp_cor_re, d_achDtemp_cor_im, d_achDtemp_corb);
     cudaDeviceSynchronize();
@@ -610,9 +598,6 @@ int main(int argc, char** argv)
 #if CUDA_VER
 //    cudaDeviceSynchronize();
     //achsDtemp
-    CudaSafeCall(cudaMemcpy(achsDtemp_re, d_achsDtemp_re, sizeof(REAL), cudaMemcpyDeviceToHost));
-    CudaSafeCall(cudaMemcpy(achsDtemp_im, d_achsDtemp_im, sizeof(REAL), cudaMemcpyDeviceToHost));
-    GPUComplex achsDtemp(*achsDtemp_re, *achsDtemp_im);
     
     //achsDtemp_mixed
     CudaSafeCall(cudaMemcpy(achsDtemp_reD, d_achsDtemp_reD, sizeof(double), cudaMemcpyDeviceToHost));
@@ -620,17 +605,17 @@ int main(int argc, char** argv)
     GPUComplexD achsDtempD(*achsDtemp_reD, *achsDtemp_imD);
 
     //asxDtemp
-    CudaSafeCall(cudaMemcpy(asxDtemp_re, d_asxDtemp_re, nfreqeval*sizeof(REAL), cudaMemcpyDeviceToHost));
-    CudaSafeCall(cudaMemcpy(asxDtemp_im, d_asxDtemp_im, nfreqeval*sizeof(REAL), cudaMemcpyDeviceToHost));
+    // CudaSafeCall(cudaMemcpy(asxDtemp_re, d_asxDtemp_re, nfreqeval*sizeof(REAL), cudaMemcpyDeviceToHost));
+    // CudaSafeCall(cudaMemcpy(asxDtemp_im, d_asxDtemp_im, nfreqeval*sizeof(REAL), cudaMemcpyDeviceToHost));
 
     //achDtemp_cor
-    CudaSafeCall(cudaMemcpy(achDtemp_cor_re, d_achDtemp_cor_re, nfreqeval*sizeof(REAL), cudaMemcpyDeviceToHost));
-    CudaSafeCall(cudaMemcpy(achDtemp_cor_im, d_achDtemp_cor_im, nfreqeval*sizeof(REAL), cudaMemcpyDeviceToHost));
+    // CudaSafeCall(cudaMemcpy(achDtemp_cor_re, d_achDtemp_cor_re, nfreqeval*sizeof(REAL), cudaMemcpyDeviceToHost));
+    // CudaSafeCall(cudaMemcpy(achDtemp_cor_im, d_achDtemp_cor_im, nfreqeval*sizeof(REAL), cudaMemcpyDeviceToHost));
 
     for(int iw = 0; iw < nfreqeval; ++iw)
     {
-        asxDtemp[iw] = GPUComplex(asxDtemp_re[iw], asxDtemp_im[iw]);
-        achDtemp_cor[iw] = GPUComplex(achDtemp_cor_re[iw], achDtemp_cor_im[iw]);
+        asxDtemp[iw] = GPUComplex(d_asxDtemp_re[iw], d_asxDtemp_im[iw]);
+        achDtemp_cor[iw] = GPUComplex(d_achDtemp_cor_re[iw], d_achDtemp_cor_im[iw]);
     }
 #endif
 
@@ -642,7 +627,7 @@ int main(int argc, char** argv)
     double elapsedTimer_Kernel = elapsedTime(startTimer_Kernel, endTimer_Kernel);
 
     std::cout.precision(13);
-    std::cout << "achsDtemp = (" << achsDtemp.real() << ", " << achsDtemp.imag() << ")" << std::endl;
+    std::cout << "achsDtemp = (" << d_achsDtemp->real() << ", " << d_achsDtemp->imag() << ")" << std::endl;
     std::cout << "achsDtempD = (" << achsDtempD.real() << ", " << achsDtempD.imag() << ")" << std::endl;
     //achsDtemp.print();
     std::cout << "asxDtemp[0] = (" << asxDtemp[0].real() << ", " << asxDtemp[0].imag() << ")" << std::endl;
@@ -666,8 +651,8 @@ int main(int argc, char** argv)
     cudaFree(d_inv_igp_index);
     cudaFree(d_indinv);
     cudaFree(d_achsDtemp);
-    cudaFree(d_achsDtemp_re);
-    cudaFree(d_achsDtemp_im);
+    cudaFree(d_achsDtemp_reD);
+    cudaFree(d_achsDtemp_imD);
     cudaFree(d_asxDtemp_re);
     cudaFree(d_asxDtemp_im);
     cudaFree(d_achDtemp_cor_re);
@@ -684,36 +669,10 @@ int main(int argc, char** argv)
 #endif
 
 //Free the allocated memory
-    free(aqsntemp);
-    free(aqsmtemp);
-    free(I_epsA_array);
-    free(I_epsR_array);
-    free(inv_igp_index);
-    free(indinv);
-    free(vcoul);
-    free(ekq);
-    free(dFreqGrid);
     free(pref);
-    free(schDi);
-    free(sch2Di);
-    free(schDi_cor);
-    free(schDi_corb);
-    free(achDtemp);
-    free(ach2Dtemp);
     free(achDtemp_cor);
-    free(achDtemp_corb);
     free(asxDtemp);
-    free(asxDtemp_re);
-    free(asxDtemp_im);
     free(dFreqBrd);
-    free(schDt_matrix);
-    free(achDtemp_cor_re);
-    free(achDtemp_cor_im);
-    //double
-    free(asxDtemp_reD);
-    free(asxDtemp_imD);
-    free(achDtemp_cor_reD);
-    free(achDtemp_cor_imD);
 
     return 0;
 }
