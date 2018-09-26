@@ -1,6 +1,8 @@
-EXE = ff_GPUComplex.ex
-SRC1 = ff_GPUComplex.cpp 
-SRC2 = ff_GPUComplex_CUDAKernel.cu
+EXE = ff_CUDA.ex
+SRC1 = ff.cpp 
+SRC2 = ff_CUDAKernel.cu
+#SRC1 = ff_GPUComplex.cpp 
+#SRC2 = ff_GPUComplex_CUDAKernel.cu
 
 CXX = nvcc
 

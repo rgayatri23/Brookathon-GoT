@@ -304,7 +304,6 @@ int main(int argc, char** argv)
         exit(0);
     }
 
-    auto startTimer = std::chrono::high_resolution_clock::now();
     int number_bands = atoi(argv[1]);
     int nvband = atoi(argv[2]);
     const int ncouls = atoi(argv[3]);
