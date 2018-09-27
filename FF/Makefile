@@ -1,6 +1,8 @@
 EXE = ff_CUDA.ex
 SRC1 = ff.cpp 
 SRC2 = ff_CUDAKernel.cu
+#SRC1 = ff_GPUComplex_orig.cpp 
+#SRC2 = ff_GPUComplex_CUDAKernel_orig.cu
 #SRC1 = ff_GPUComplex.cpp 
 #SRC2 = ff_GPUComplex_CUDAKernel.cu
 
@@ -12,7 +14,8 @@ ifeq ($(CXX),nvcc)
 	CXXFLAGS= -g -O3 -std=c++11 -Wno-deprecated-gpu-targets 
 #	CXXFLAGS+= -Xptxas -v --maxrregcount=150
  #   CXXFLAG+=-arch=sm_35
-	    CXXFLAGS+=-arch=sm_70 -lineinfo --ptxas-options=-v
+	    CXXFLAGS+=-arch=sm_60 -lineinfo --ptxas-options=-v
+#	    CXXFLAGS+=-arch=sm_70 -lineinfo --ptxas-options=-v
 	LINKFLAGS=-Wno-deprecated-gpu-targets
 endif 
 

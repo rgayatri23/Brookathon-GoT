@@ -524,7 +524,8 @@ int main(int argc, char** argv)
     double elapsed_preKernel = elapsedTime(start_preKernel, end_preKernel);
     cout << "pre kernel time taken = " << elapsed_preKernel << " secs" << endl;
 
-    cout << "starting Kernels" << endl;
+    cout << "starting Kernels GPUComplex version" << endl;
+    
     gettimeofday(&startTimer_Kernel, NULL);
 
     /***********achsDtemp Kernel ****************/

@@ -8,10 +8,10 @@ LINK = ${CXX}
 
 ifeq ($(CXX),nvcc)
 	CXXFLAGS= -g -O3 -std=c++11 -Wno-deprecated-gpu-targets 
-	CXXFLAGS+=-Xptxas -v --maxrregcount=100 #output usage of registers
+#	CXXFLAGS+=-Xptxas -v --maxrregcount=100 #output usage of registers
 	CXXFLAGS+=-fmad=true
-	#CXXFLAGS+=-arch=sm_60
-	CXXFLAGS+=-arch=sm_70
+	CXXFLAGS+=-arch=sm_60
+	#CXXFLAGS+=-arch=sm_70
 	LINKFLAGS=-Wno-deprecated-gpu-targets
 endif 
 
