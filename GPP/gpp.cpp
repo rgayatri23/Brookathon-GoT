@@ -1,10 +1,14 @@
 #include "../ComplexClass/CustomComplex.h"
+#include "../ComplexClass/cudaAlloc.h"
 
 using namespace std;
 #define nstart 0
 #define nend 3
 
-inline void reduce_achstemp(int n1, int number_bands, int* inv_igp_index, int ncouls, CustomComplex<double>  *aqsmtemp, CustomComplex<double> *aqsntemp, CustomComplex<double> *I_eps_array, CustomComplex<double> achstemp,  int* indinv, int ngpown, double* vcoul, int numThreads)
+#define CUDA_VER 1
+
+
+inline void reduce_achstemp(int n1, int number_bands, int* inv_igp_index, int ncouls, CustomComplex<double>  *aqsmtemp, CustomComplex<double> *aqsntemp, CustomComplex<double> *I_eps_array, CustomComplex<double> achstemp,  int* indinv, int ngpown, double* vcoul)
 {
     double to1 = 1e-6;
     CustomComplex<double> schstemp(0.0, 0.0);;
@@ -200,14 +204,14 @@ int main(int argc, char** argv)
 
 
     //OpenMP Printing of threads on Host and Device
-    int tid, numThreads, numTeams;
-#pragma omp parallel shared(numThreads) private(tid)
-    {
-        tid = omp_get_thread_num();
-        if(tid == 0)
-            numThreads = omp_get_num_threads();
-    }
-    std::cout << "Number of OpenMP Threads = " << numThreads << endl;
+//    int tid, numThreads, numTeams;
+//#pragma omp parallel shared(numThreads) private(tid)
+//    {
+//        tid = omp_get_thread_num();
+//        if(tid == 0)
+//            numThreads = omp_get_num_threads();
+//    }
+//    std::cout << "Number of OpenMP Threads = " << numThreads << endl;
 
     //Printing out the params passed.
     std::cout << "Sizeof(CustomComplex<double> = " << sizeof(CustomComplex<double>) << " bytes" << std::endl;
@@ -301,20 +305,53 @@ int main(int argc, char** argv)
             if(wx_array[iw] < to1) wx_array[iw] = to1;
         }
 
+#if CUDA_VER
+    CustomComplex<double> *d_aqsmtemp, *d_aqsntemp, *d_I_eps_array, *d_wtilde_array;
+    int *d_inv_igp_index, *d_indinv; 
+    double *d_achtemp_re, *d_achtemp_im, *d_wx_array, *d_vcoul;
+    
+    //Allocate Device Memory
+    CudaSafeCall(cudaMalloc((void**) &d_inv_igp_index, ngpown*sizeof(int)));
+    CudaSafeCall(cudaMalloc((void**) &d_indinv, (ncouls+1)*sizeof(int)));
+    CudaSafeCall(cudaMalloc((void**) &d_wx_array, (nend-nstart)*sizeof(double)));
+    CudaSafeCall(cudaMalloc((void**) &d_wtilde_array, ngpown*ncouls*sizeof(CustomComplex<double>)));
+    CudaSafeCall(cudaMalloc((void**) &d_aqsntemp, number_bands*ncouls*sizeof(CustomComplex<double>)));
+    CudaSafeCall(cudaMalloc((void**) &d_aqsmtemp, number_bands*ncouls*sizeof(CustomComplex<double>)));
+    CudaSafeCall(cudaMalloc((void**) &d_I_eps_array, ngpown*ncouls*sizeof(CustomComplex<double>)));
+    CudaSafeCall(cudaMalloc((void**) &d_vcoul, ncouls*sizeof(double)));
+    CudaSafeCall(cudaMalloc((void**) &d_achtemp_re, (nend-nstart)*sizeof(double)));
+    CudaSafeCall(cudaMalloc((void**) &d_achtemp_im, (nend-nstart)*sizeof(double)));
+
+    //Cuda memcpy
+    CudaSafeCall(cudaMemcpy(d_inv_igp_index, inv_igp_index, ngpown*sizeof(int), cudaMemcpyHostToDevice));
+    CudaSafeCall(cudaMemcpy(d_indinv, indinv, (ncouls+1)*sizeof(int), cudaMemcpyHostToDevice));
+    CudaSafeCall(cudaMemcpy(d_wx_array, wx_array, (nend-nstart)*sizeof(double), cudaMemcpyHostToDevice));
+    CudaSafeCall(cudaMemcpy(d_wtilde_array, wtilde_array, ngpown*ncouls*sizeof(CustomComplex<double>), cudaMemcpyHostToDevice));
+    CudaSafeCall(cudaMemcpy(d_aqsmtemp, aqsmtemp, number_bands*ncouls*sizeof(CustomComplex<double>), cudaMemcpyHostToDevice));
+    CudaSafeCall(cudaMemcpy(d_aqsntemp, aqsntemp, number_bands*ncouls*sizeof(CustomComplex<double>), cudaMemcpyHostToDevice));
+    CudaSafeCall(cudaMemcpy(d_I_eps_array, I_eps_array, ngpown*ncouls*sizeof(CustomComplex<double>), cudaMemcpyHostToDevice));
+    CudaSafeCall(cudaMemcpy(d_vcoul, vcoul, ncouls*sizeof(double), cudaMemcpyHostToDevice));
+    CudaSafeCall(cudaMemcpy(d_achtemp_re, achtemp_re, (nend-nstart)*sizeof(double), cudaMemcpyHostToDevice));
+    CudaSafeCall(cudaMemcpy(d_achtemp_im, achtemp_im, (nend-nstart)*sizeof(double), cudaMemcpyHostToDevice));
+#endif
     //Start the timer before the work begins.
     timeval startTimer, endTimer;
     gettimeofday(&startTimer, NULL);
 
     //0-nvband iterations
-    till_nvband(number_bands, nvband, ngpown, ncouls, asxtemp, wx_array, wtilde_array, aqsmtemp, aqsntemp, I_eps_array, inv_igp_index, indinv, vcoul);
-
-    //reduction on achstemp
-#pragma omp parallel for 
-    for(int n1 = 0; n1<number_bands; ++n1) 
-        reduce_achstemp(n1, number_bands, inv_igp_index, ncouls,aqsmtemp, aqsntemp, I_eps_array, achstemp, indinv, ngpown, vcoul, numThreads);
+//    till_nvband(number_bands, nvband, ngpown, ncouls, asxtemp, wx_array, wtilde_array, aqsmtemp, aqsntemp, I_eps_array, inv_igp_index, indinv, vcoul);
 
     //main-loop with output on achtemp divide among achtemp_re && achtemp_im
+#if CUDA_VER
+    noflagOCC_cudaKernel(number_bands, ngpown, ncouls, d_inv_igp_index, d_indinv, d_wx_array, d_wtilde_array, d_aqsmtemp, d_aqsntemp, d_I_eps_array, d_vcoul, d_achtemp_re, d_achtemp_im);
+    cudaDeviceSynchronize();
+    CudaSafeCall(cudaMemcpy(achtemp_re, d_achtemp_re, (nend-nstart)*sizeof(double), cudaMemcpyDeviceToHost));
+    CudaSafeCall(cudaMemcpy(achtemp_im, d_achtemp_im, (nend-nstart)*sizeof(double), cudaMemcpyDeviceToHost));
+
+#else
     noflagOCC_solver(number_bands, ngpown, ncouls, inv_igp_index, indinv, wx_array, wtilde_array, aqsmtemp, aqsntemp, I_eps_array, vcoul, achtemp_re, achtemp_im);
+#endif
+
 
     //Time Taken
     gettimeofday(&endTimer, NULL);

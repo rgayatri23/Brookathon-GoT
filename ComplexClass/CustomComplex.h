@@ -218,8 +218,11 @@ inline double CustomComplex_imag( const CustomComplex<T>& src) {
 }
 
 //GPP Function definition
+//template<class T>
+//void noflagOCC_cudaKernel(int number_bands, int ngpown, int ncouls, int *inv_igp_index, int *indinv, double *wx_array, CustomComplex<double> *wtilde_array, CustomComplex<double> *aqsmtemp, CustomComplex<double> *aqsntemp, CustomComplex<double> *I_eps_array, double *vcoul, double *achtemp_re, double *achtemp_im);
+
 template<class T>
-void noflagOCC_cudaKernel(int number_bands, int ngpown, int ncouls, int *inv_igp_index, int *indinv, double *wx_array, CustomComplex<double> *wtilde_array, CustomComplex<double> *aqsmtemp, CustomComplex<double> *aqsntemp, CustomComplex<double> *I_eps_array, double *vcoul, double *achtemp_re, double *achtemp_im);
+void noflagOCC_cudaKernel(int number_bands, int ngpown, int ncouls, int *inv_igp_index, int *indinv, double *wx_array, CustomComplex<T> *wtilde_array, CustomComplex<T> *aqsmtemp, CustomComplex<T> *aqsntemp, CustomComplex<T> *I_eps_array, double *vcoul, T *achtemp_re, T *achtemp_im);
 
 //FF Function definition
 //template<class T>
