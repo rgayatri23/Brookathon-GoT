@@ -204,14 +204,12 @@ void noflagOCC_solver(int number_bands, int ngpown, int ncouls, int *inv_igp_ind
     double achtemp_re0 = 0.00, achtemp_re1 = 0.00, achtemp_re2 = 0.00, \
                          achtemp_im0 = 0.00, achtemp_im1 = 0.00, achtemp_im2 = 0.00;
 
-#pragma acc parallel loop gang present(inv_igp_index, indinv, wtilde_array, wx_array, aqsmtemp, \
+#pragma acc parallel loop gang collapse(2) present(inv_igp_index, indinv, wtilde_array, wx_array, aqsmtemp, \
      aqsntemp, I_eps_array, vcoul)\
-    num_gangs(number_bands) vector_length(32) \
-    reduction(+:achtemp_re0, achtemp_re1, achtemp_re2, achtemp_im0, achtemp_im1, achtemp_im2)
+    reduction(+:achtemp_re0, achtemp_re1, achtemp_re2, achtemp_im0, achtemp_im1, achtemp_im2)//\
+    num_gangs(number_bands*ngpown) vector_length(32)
     for(int n1 = 0; n1<number_bands; ++n1)
     {
-#pragma acc loop vector\
-    reduction(+:achtemp_re0, achtemp_re1, achtemp_re2, achtemp_im0, achtemp_im1, achtemp_im2)
         for(int my_igp=0; my_igp<ngpown; ++my_igp)
         {
             int indigp = inv_igp_index[my_igp];
@@ -222,7 +220,8 @@ void noflagOCC_solver(int number_bands, int ngpown, int ncouls, int *inv_igp_ind
             double achtemp_re_loc[nend-nstart], achtemp_im_loc[nend-nstart];
             for(int iw = nstart; iw < nend; ++iw) {achtemp_re_loc[iw] = 0.00; achtemp_im_loc[iw] = 0.00;}
 
-#pragma acc loop seq
+#pragma acc loop vector\
+    reduction(+:achtemp_re0, achtemp_re1, achtemp_re2, achtemp_im0, achtemp_im1, achtemp_im2)
             for(int ig = 0; ig<ncouls; ++ig)
             {
 #pragma acc loop seq
@@ -234,19 +233,21 @@ void noflagOCC_solver(int number_bands, int ngpown, int ncouls, int *inv_igp_ind
                     double sch_array_re = CustomComplex_real(sch_array);
                     double sch_array_im = CustomComplex_imag(sch_array);
 
-                    achtemp_re_loc[iw] += sch_array_re ;
-                    achtemp_im_loc[iw] += sch_array_im ;
+                    achtemp_re_loc[iw] = sch_array_re ;
+                    achtemp_im_loc[iw] = sch_array_im ;
+
                 }
+#if reductionVersion
+                achtemp_re0 += achtemp_re_loc[0];
+                achtemp_re1 += achtemp_re_loc[1];
+                achtemp_re2 += achtemp_re_loc[2];
+                achtemp_im0 += achtemp_im_loc[0];
+                achtemp_im1 += achtemp_im_loc[1];
+                achtemp_im2 += achtemp_im_loc[2];
+#endif
             }
 
-#if reductionVersion
-            achtemp_re0 += achtemp_re_loc[0];
-            achtemp_re1 += achtemp_re_loc[1];
-            achtemp_re2 += achtemp_re_loc[2];
-            achtemp_im0 += achtemp_im_loc[0];
-            achtemp_im1 += achtemp_im_loc[1];
-            achtemp_im2 += achtemp_im_loc[2];
-#else
+#if !reductionVersion
 #pragma acc loop seq
             for(int iw = nstart; iw < nend; ++iw)
             {

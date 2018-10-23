@@ -12,7 +12,7 @@ ifeq ($(CXX),pgc++)
 	CXXFLAGS=-O3 -std=c++11 --gnu_extensions #-Munroll -mcmodel=medium #-Msafeptr
 	CXXFLAGS+=-acc -ta=tesla:cc70
 	CXXFLAGS+=-ta=tesla:managed#,ptxinfo
-	CXXFLAGS+=-Minfo=accel
+	#CXXFLAGS+=-Minfo=accel
 	CXXFLAGS+=-Mlarge_arrays
 	LINKFLAGS=-acc
 	LINKFLAGS+=-ta=tesla:cc70

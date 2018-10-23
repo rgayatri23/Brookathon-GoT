@@ -388,9 +388,9 @@ void achDtemp_cor_Kernel(int number_bands, int nvband, int nfreqeval, int ncouls
 //Summing up at the end of iw loop
             double schDi_cor_re = CustomComplex_real(schDi_cor);
             double schDi_cor_im = CustomComplex_imag(schDi_cor);
-#pragma acc atomic
+#pragma acc atomic update
             achDtemp_cor_re[iw] += schDi_cor_re;
-#pragma acc atomic
+#pragma acc atomic update 
             achDtemp_cor_im[iw] += schDi_cor_im;
         }// iw
     } //n1
@@ -467,17 +467,17 @@ void all_Kernels(size_t number_bands, size_t ngpown, size_t ncouls, size_t nFreq
             double &elapsed_achsDtemp, double &elapsed_asxDtemp, double &elapsed_achDtemp_cor)
 {
     /***********achsDtemp Kernel ****************/
-    achsDtemp_Kernel(number_bands, ngpown, ncouls, nFreq, inv_igp_index, indinv, aqsntemp, aqsmtemp, I_epsR_array, I_epsA_array, vcoul, achsDtemp, elapsed_achsDtemp);
+//    achsDtemp_Kernel(number_bands, ngpown, ncouls, nFreq, inv_igp_index, indinv, aqsntemp, aqsmtemp, I_epsR_array, I_epsA_array, vcoul, achsDtemp, elapsed_achsDtemp);
 
     /***********asxDtemp Kernel ****************/
     asxDtemp_Kernel(number_bands, nvband, nfreqeval, ncouls, ngpown, nFreq, freqevalmin, freqevalstep, occ, ekq, dFreqGrid, inv_igp_index, indinv, aqsmtemp, aqsntemp,\
             vcoul, I_epsR_array, I_epsA_array, asxDtemp_re, asxDtemp_im, elapsed_asxDtemp);
 
     /***********achDtemp Kernel ****************/
-    achDtemp_Kernel(number_bands, nvband, nfreqeval, ncouls, ngpown, nFreq, freqevalmin, freqevalstep, ekq, pref_zb, pref, dFreqGrid, dFreqBrd, schDt_matrix, asxDtemp);
-
-    /***********achDtemp_cor Kernel ****************/
-    achDtemp_cor_Kernel(number_bands, nvband, nfreqeval, ncouls, ngpown, nFreq, freqevalmin, freqevalstep, ekq, dFreqGrid, inv_igp_index, indinv, aqsmtemp, aqsntemp, vcoul, I_epsR_array, I_epsA_array, achDtemp_cor_re, achDtemp_cor_im, elapsed_achDtemp_cor);
+//    achDtemp_Kernel(number_bands, nvband, nfreqeval, ncouls, ngpown, nFreq, freqevalmin, freqevalstep, ekq, pref_zb, pref, dFreqGrid, dFreqBrd, schDt_matrix, asxDtemp);
+//
+//    /***********achDtemp_cor Kernel ****************/
+//    achDtemp_cor_Kernel(number_bands, nvband, nfreqeval, ncouls, ngpown, nFreq, freqevalmin, freqevalstep, ekq, dFreqGrid, inv_igp_index, indinv, aqsmtemp, aqsntemp, vcoul, I_epsR_array, I_epsA_array, achDtemp_cor_re, achDtemp_cor_im, elapsed_achDtemp_cor);
 
 //Aggregate results
 #pragma acc kernels async(3) wait(2)
