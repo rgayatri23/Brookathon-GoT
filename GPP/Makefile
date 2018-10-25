@@ -10,7 +10,7 @@ ifeq ($(CXX),pgc++)
 	#CXXFLAGS+=-acc -ta=multicore
 	CXXFLAGS+=-acc -ta=tesla:cc70
 	CXXFLAGS+=-Minfo=accel
-	CXXFLAGS+=-ta=tesla:keepgpu -ta=tesla:keepptx
+	#CXXFLAGS+=-ta=tesla:keepgpu -ta=tesla:keepptx
 	LINKFLAGS=-acc
 	LINKFLAGS+=-ta=tesla:cc70
 	#LINKFLAGS+=-ta=tesla:cc60
