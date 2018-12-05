@@ -8,12 +8,13 @@ LINK = ${CXX}
 ifeq ($(CXX),pgc++)
 	CXXFLAGS=-fast -std=c++11 --gnu_extensions -g -Munroll
 	#CXXFLAGS+=-acc -ta=multicore
-	CXXFLAGS+=-acc -ta=tesla:cc70
+	CXXFLAGS+=-acc -ta=tesla:cc60
+	#CXXFLAGS+=-acc -ta=tesla:cc70
 	CXXFLAGS+=-Minfo=accel
 	#CXXFLAGS+=-ta=tesla:keepgpu -ta=tesla:keepptx
 	LINKFLAGS=-acc
-	LINKFLAGS+=-ta=tesla:cc70
-	#LINKFLAGS+=-ta=tesla:cc60
+	#LINKFLAGS+=-ta=tesla:cc70
+	LINKFLAGS+=-ta=tesla:cc60
 endif
 
 OBJ = $(SRC:.cpp=.o)

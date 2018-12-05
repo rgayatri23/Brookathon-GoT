@@ -68,12 +68,12 @@ void init_structs(size_t number_bands, size_t ngpown, size_t ncouls, CustomCompl
 }
 
 inline void reduce_achstemp(int number_bands, int* inv_igp_index, int ncouls, CustomComplex<double>  *aqsmtemp, CustomComplex<double> *aqsntemp, CustomComplex<double> *I_eps_array,\
-        CustomComplex<double> achstemp,  int* indinv, int ngpown, double* vcoul, int numThreads)
+      CustomComplex<double> achstemp,  int* indinv, int ngpown, double* vcoul, int numThreads)
 {
     double to1 = 1e-6;
     CustomComplex<double> schstemp(0.0, 0.0);;
 
-#pragma acc kernels present(inv_igp_index, aqsmtemp, aqsntemp, I_eps_array, indinv, vcoul)
+//#pragma acc kernels present(inv_igp_index, aqsmtemp, aqsntemp, I_eps_array, indinv, vcoul)
     for(int n1 = 0; n1<number_bands; ++n1)
         for(int my_igp = 0; my_igp< ngpown; my_igp++)
         {
