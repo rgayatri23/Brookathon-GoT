@@ -1,16 +1,14 @@
-#exe = gppcustomcomplex.ex
-#src = gppcustomcomplex.cpp 
 EXE = gpp.ex
 SRC = gpp.cpp 
 
 #CXX = xlc++_r
-#CXX = CC 
-CXX = g++
-#CXX = clang++
+#CXX = icc 
+#CXX = g++
+CXX = clang++
 
 LINK = ${CXX}
 
-ifeq ($(CXX),CC)
+ifeq ($(CXX),icc)
     CXXFLAGS=-O3 -std=c++11 -qopenmp -qopt-report=5
     CXXFLAGS+=-qopenmp-offload=host #For offloading
     #CXXFLAGS+=-qno-openmp-offload #For disabling offloading
@@ -26,13 +24,13 @@ ifeq ($(CXX),g++)
 endif 
 
 ifeq ($(CXX),xlc++_r)
-	CXXFLAGS=-std=gnu++11 -g -O3 -qsmp=noauto:omp -qoffload #-qnoipa -qstrict #-Xptxas -v
+	CXXFLAGS=-O3 -std=gnu++11 -qsmp=noauto:omp -qoffload #-Xptxas -v
 	LINKFLAGS=-qsmp=noauto:omp -qoffload 
 endif 
 
 ifeq ($(CXX),clang++)
-	CXXFLAGS=-O3 -std=gnu++11 -fopenmp -fopenmp-targets=nvptx64-nvidia-cuda --cuda-path=${CUDA_HOME}
-	LINKFLAGS=-fopenmp -fopenmp-targets=nvptx64-nvidia-cuda --cuda-path=${CUDA_HOME}
+	CXXFLAGS=-O3 -std=gnu++11 -fopenmp -fopenmp-targets=nvptx64-nvidia-cuda --cuda-path=${OLCF_CUDA_ROOT}
+	LINKFLAGS=-fopenmp -fopenmp-targets=nvptx64-nvidia-cuda --cuda-path=${OLCF_CUDA_ROOT}
 endif 
 
 ifeq ($(CXX),icc)
