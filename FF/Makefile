@@ -1,10 +1,10 @@
 EXE = ff.ex
 SRC = ff.cpp 
 
-#CXX = xlc++_r
+CXX = xlc++_r
 #CXX = icc 
 #CXX = g++
-CXX = clang++
+#CXX = clang++
 
 LINK = ${CXX}
 
