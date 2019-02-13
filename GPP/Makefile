@@ -3,11 +3,11 @@ SRC = gpp.cpp
 
 #CXX = xlc++_r
 #CXX = g++
-CXX = CC
+CXX = icc
 
 LINK = ${CXX}
 
-ifeq ($(CXX),CC)
+ifeq ($(CXX),icc)
 ##Intel compiler flag
 	CXXFLAGS= -g -O3 -qopenmp -qopt-report=5 -std=c++11
     CXXFLAGS+=-fma #Fused multiply and add
@@ -15,7 +15,7 @@ ifeq ($(CXX),CC)
 #    CXXFLAGS+=-I /usr/common/software/likwid/4.3.0/include/ -DUSE_VTUNE -I${VTUNE_AMPLIFIER_XE_2018_DIR}/include -DLIKWID_PERFMON
     CXXFLAGS+=-xCORE-AVX2
     #CXXFLAGS+=-xMIC-AVX512
-    LINKFLAGS=-qopenmp -dynamic
+    LINKFLAGS=-qopenmp #-dynamic
 #    LINKFLAGS+=-L /usr/common/software/likwid/4.3.0/lib -llikwid
 #    LINKFLAGS+=-L ${VTUNE_AMPLIFIER_XE_2018_DIR}/lib64 -littnotify
 

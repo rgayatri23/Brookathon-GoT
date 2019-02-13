@@ -1,19 +1,20 @@
 EXE = ff.ex
 SRC = ff.cpp 
 
-CXX = xlc++_r
+#CXX = xlc++_r
 #CXX = g++
-#CXX = CC
+CXX = icc
 
 LINK = ${CXX}
 
-ifeq ($(CXX),CC)
+ifeq ($(CXX),icc)
 ##Intel compiler flag
 	CXXFLAGS= -g -O3 -qopenmp -qopt-report=5 -std=c++11
     CXXFLAGS+=-fma #Fused multiply and add
     #CXXFLAGS+=-xCORE-AVX2
     CXXFLAGS+=-xMIC-AVX512
-    LINKFLAGS=-qopenmp -dynamic
+    CXXFLAGS+=-vec-threshold0 #Always vectorize, intel flag instead of vec-always directive
+    LINKFLAGS=-qopenmp #-dynamic
 endif 
 
 ifeq ($(CXX),g++)
