@@ -3,7 +3,8 @@ SRC = gpp.cpp
 
 #CXX = xlc++_r
 #CXX = g++
-CXX = icc
+#CXX = icc
+CXX = CC
 
 LINK = ${CXX}
 
@@ -21,6 +22,12 @@ ifeq ($(CXX),icc)
 
 #Cray compiler flag
 #	CXXFLAGS= -hlist=a
+endif 
+
+ifeq ($(CXX),CC)
+#Cray compiler flag
+	CXXFLAGS= -hlist=a
+#	CXXFLAGS+= -fopenmp
 endif 
 
 ifeq ($(CXX),g++)
