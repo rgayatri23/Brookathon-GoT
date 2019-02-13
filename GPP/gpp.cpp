@@ -4,7 +4,7 @@ using namespace std;
 #define nstart 0
 #define nend 3
 
-inline void reduce_achstemp(int n1, int number_bands, int* inv_igp_index, int ncouls, CustomComplex<double>  *aqsmtemp, CustomComplex<double> *aqsntemp, CustomComplex<double> *I_eps_array, CustomComplex<double> achstemp,  int* indinv, int ngpown, double* vcoul, int numThreads)
+inline void reduce_achstemp(int n1, int number_bands, int* inv_igp_index, int ncouls, CustomComplex<double>  *aqsmtemp, CustomComplex<double> *aqsntemp, CustomComplex<double> *I_eps_array, CustomComplex<double> achstemp,  int* indinv, int ngpown, double* vcoul)
 {
     double to1 = 1e-6;
     CustomComplex<double> schstemp(0.0, 0.0);;
@@ -209,14 +209,14 @@ int main(int argc, char** argv)
 
 
     //OpenMP Printing of threads on Host and Device
-    int tid, numThreads, numTeams;
-#pragma omp parallel shared(numThreads) private(tid)
-    {
-        tid = omp_get_thread_num();
-        if(tid == 0)
-            numThreads = omp_get_num_threads();
-    }
-    std::cout << "Number of OpenMP Threads = " << numThreads << endl;
+//    int tid, numThreads, numTeams;
+//#pragma omp parallel shared(numThreads) private(tid)
+//    {
+//        tid = omp_get_thread_num();
+//        if(tid == 0)
+//            numThreads = omp_get_num_threads();
+//    }
+//    std::cout << "Number of OpenMP Threads = " << numThreads << endl;
 
     //Printing out the params passed.
     std::cout << "Sizeof(CustomComplex<double> = " << sizeof(CustomComplex<double>) << " bytes" << std::endl;
@@ -320,7 +320,7 @@ int main(int argc, char** argv)
     //reduction on achstemp
 #pragma omp parallel for 
     for(int n1 = 0; n1<number_bands; ++n1) 
-        reduce_achstemp(n1, number_bands, inv_igp_index, ncouls,aqsmtemp, aqsntemp, I_eps_array, achstemp, indinv, ngpown, vcoul, numThreads);
+        reduce_achstemp(n1, number_bands, inv_igp_index, ncouls,aqsmtemp, aqsntemp, I_eps_array, achstemp, indinv, ngpown, vcoul);
 
     //main-loop with output on achtemp divide among achtemp_re && achtemp_im
     noflagOCC_solver(number_bands, ngpown, ncouls, inv_igp_index, indinv, wx_array, wtilde_array, aqsmtemp, aqsntemp, I_eps_array, vcoul, achtemp_re, achtemp_im);

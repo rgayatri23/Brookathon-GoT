@@ -5,10 +5,21 @@ SRC = gpp.cpp
 
 #CXX = xlc++_r
 #CXX = CC 
-CXX = g++
+CXX = icc 
+#CXX = g++
 #CXX = clang++
 
 LINK = ${CXX}
+
+ifeq ($(CXX),icc)
+    CXXFLAGS=-O3 -std=c++11 -qopenmp -qopt-report=5
+    CXXFLAGS+=-qopenmp-offload=host #For offloading
+    #CXXFLAGS+=-qno-openmp-offload #For disabling offloading
+    CXXFLAGS+=-xCORE-AVX2
+    #CXXFLAGS+=-xMIC-AVX512
+    LINKFLAGS=-qopenmp -qopenmp-offload=mic
+    #LINKFLAGS+=-dynamic #Dynamic flag gives runtime issues with OMP4.5
+endif 
 
 ifeq ($(CXX),CC)
     CXXFLAGS=-O3 -std=c++11 -qopenmp -qopt-report=5
