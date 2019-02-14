@@ -1,4 +1,4 @@
-#include "../ComplexClass/cudaAlloc.h"
+//#include "../ComplexClass/cudaAlloc.h"
 #include "../ComplexClass/CustomComplex.h"
 
 #define nstart 0
@@ -32,7 +32,7 @@ inline void reduce_achstemp(int n1, int number_bands, int* inv_igp_index, int nc
             if(CustomComplex_abs(schs) > to1)
                 schstemp += matngmatmgp * schs;
             }
-            else 
+            else
             {
                 for(int ig=1; ig<ncouls; ++ig)
                 {
@@ -69,15 +69,15 @@ inline void flagOCC_solver(double wxt, CustomComplex<double> *wtilde_array, int 
         double limitone = 1.0/(to1*4.0);
         double limittwo = pow(0.5,2);
         CustomComplex<double> sch(0.00, 0.00), ssx(0.00, 0.00);
-    
+
         CustomComplex<double> wdiff = wxt - wtilde;
-    
+
         CustomComplex<double> cden = wdiff;
         double rden = 1/CustomComplex_real(cden * CustomComplex_conj(cden));
         CustomComplex<double> delw = wtilde * CustomComplex_conj(cden) * rden;
         double delwr = CustomComplex_real(delw * CustomComplex_conj(delw));
         double wdiffr = CustomComplex_real(wdiff * CustomComplex_conj(wdiff));
-    
+
         if((wdiffr > limittwo) && (delwr < limitone))
         {
             sch = delw * I_eps_array[my_igp*ngpown+ig];
@@ -99,7 +99,7 @@ inline void flagOCC_solver(double wxt, CustomComplex<double> *wtilde_array, int 
             sch = expr0;
             ssx = expr0;
         }
-    
+
         ssxcutoff = CustomComplex_abs(I_eps_array[my_igp*ngpown+ig]) * sexcut;
         if((CustomComplex_abs(ssx) > ssxcutoff) && (wxt < 0.00)) ssx = expr0;
 
@@ -137,7 +137,7 @@ void noflagOCC_solver(int number_bands, int ngpown, int ncouls, int *inv_igp_ind
     double ach_re0 = 0.00, ach_re1 = 0.00, ach_re2 = 0.00, \
         ach_im0 = 0.00, ach_im1 = 0.00, ach_im2 = 0.00;
 
-#if __OMPOFFLOAD__ 
+#if __OMPOFFLOAD__
 #pragma omp target enter data map(alloc:aqsmtemp[0:number_bands*ncouls], vcoul[0:ncouls], inv_igp_index[0:ngpown], indinv[0:ncouls+1], \
     aqsntemp[0:number_bands*ncouls], I_eps_array[0:ngpown*ncouls], wx_array[nstart:nend], wtilde_array[0:ngpown*ncouls])
 #pragma omp target update to(aqsmtemp[0:number_bands*ncouls], vcoul[0:ncouls], inv_igp_index[0:ngpown], indinv[0:ncouls+1], \
@@ -167,7 +167,7 @@ void noflagOCC_solver(int number_bands, int ngpown, int ncouls, int *inv_igp_ind
 
     for(int my_igp=0; my_igp<ngpown; ++my_igp)
     {
-        for(int n1 = 0; n1<number_bands; ++n1) 
+        for(int n1 = 0; n1<number_bands; ++n1)
         {
             int indigp = inv_igp_index[my_igp];
             int igp = indinv[indigp];
@@ -261,8 +261,8 @@ int main(int argc, char** argv)
     const int nvband = atoi(argv[2]);
     const int ncouls = atoi(argv[3]);
     const int nodes_per_group = atoi(argv[4]);
-    const int npes = 1; 
-    const int ngpown = ncouls / (nodes_per_group * npes); 
+    const int npes = 1;
+    const int ngpown = ncouls / (nodes_per_group * npes);
 
 //Constants that will be used later
     const double e_lk = 10;
@@ -272,7 +272,7 @@ int main(int argc, char** argv)
     const double sexcut = 4.0;
     const double limitone = 1.0/(to1*4.0);
     const double limittwo = pow(0.5,2);
-    const double e_n1kq= 6.0; 
+    const double e_n1kq= 6.0;
     const double occ=1.0;
 
     //Start the timer before the work begins.
@@ -299,7 +299,7 @@ int main(int argc, char** argv)
         if(tid == 0)
         {
             numTeams = omp_get_num_teams();
-#pragma omp parallel 
+#pragma omp parallel
             {
                 int ttid = omp_get_thread_num();
                 if(ttid == 0)
@@ -320,7 +320,7 @@ int main(int argc, char** argv)
         << "\t ngpown = " << ngpown \
         << "\t nend = " << nend \
         << "\t nstart = " << nstart << endl;
-   
+
     CustomComplex<double> expr0(0.00, 0.00);
     CustomComplex<double> expr(0.5, 0.5);
     long double memFootPrint = 0.00;
@@ -359,8 +359,8 @@ int main(int argc, char** argv)
 
     double wx_array[nend-nstart];
     CustomComplex<double> achstemp;
-                        
-    //Print Memory Foot print 
+
+    //Print Memory Foot print
     cout << "Memory Foot Print = " << memFootPrint / pow(1024,3) << " GBs" << endl;
 
 
@@ -407,8 +407,8 @@ int main(int argc, char** argv)
     till_nvband(number_bands, nvband, ngpown, ncouls, asxtemp, wx_array, wtilde_array, aqsmtemp, aqsntemp, I_eps_array, inv_igp_index, indinv, vcoul);
 
     //reduction on achstemp
-#pragma omp parallel for 
-    for(int n1 = 0; n1<number_bands; ++n1) 
+#pragma omp parallel for
+    for(int n1 = 0; n1<number_bands; ++n1)
         reduce_achstemp(n1, number_bands, inv_igp_index, ncouls,aqsmtemp, aqsntemp, I_eps_array, achstemp, indinv, ngpown, vcoul);
 
     noflagOCC_solver(number_bands, ngpown, ncouls, inv_igp_index, indinv, wx_array, wtilde_array, aqsmtemp, aqsntemp, I_eps_array, vcoul, achtemp_re, achtemp_im, elapsedKernelTimer);

@@ -3,8 +3,8 @@ SRC = gpp.cpp
 
 #CXX = xlc++_r
 #CXX = CC
-CXX = icc
-#CXX = clang++
+#CXX = icc
+CXX = clang++
 #CXX = g++
 
 LINK = ${CXX}
@@ -40,8 +40,8 @@ ifeq ($(CXX),xlc++_r)
 endif
 
 ifeq ($(CXX),clang++)
-	CXXFLAGS=-O3 -std=gnu++11 -fopenmp -fopenmp-targets=nvptx64-nvidia-cuda --cuda-path=${OLCF_CUDA_ROOT}
-	LINKFLAGS=-fopenmp -fopenmp-targets=nvptx64-nvidia-cuda --cuda-path=${OLCF_CUDA_ROOT}
+	CXXFLAGS=-O3 -std=gnu++11 -fopenmp -fopenmp-targets=nvptx64-nvidia-cuda #--cuda-path=${OLCF_CUDA_ROOT}
+	LINKFLAGS=-fopenmp -fopenmp-targets=nvptx64-nvidia-cuda #--cuda-path=${OLCF_CUDA_ROOT}
 endif
 
 ifeq ($(CXX),icc)
