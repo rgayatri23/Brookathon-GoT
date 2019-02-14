@@ -3,8 +3,8 @@ SHELL = /bin/sh
 #==========================
 # Files
 #==========================
-EXE = gpp.exe
-SRC = *.cpp
+EXE = gpp.ex
+SRC = gpp_cray.cpp
 
 #==========================
 # Machine specific info
@@ -12,8 +12,8 @@ SRC = *.cpp
 # compilers and options
 CXX = CC #-haccel=nvidia70 #-ta=nvidia:cc70
 DEFINE = $(DEFINES) # -DGPU -DDEBUG  # -DDEBUG # -DGPU
-OPT= -hunroll1 -O2 -hvector2,scalar3 -h flex_mp=tolerant 
-CXXFLAGS =  -hlist=m -hnomessage=7275 $(OPT)  $(DEFINE)  -lcrypto 
+OPT= -hunroll1 -O2 -hvector2,scalar3 -h flex_mp=tolerant
+CXXFLAGS =  -hlist=m -hnomessage=7275 $(OPT)  $(DEFINE)  -lcrypto
 
 # intel CXXFLAGS = -std=c++11 -O3 -qopenmp  -ipo -no-prec-div -fp-model fast=2 $(DEFINE) # -lcrypto # -fopenmp  -lcrypto
 # gcc CXXFLAGS = -O3 -fopenmp -g $(DEFINE) # -lcrypto # -fopenmp  -lcrypto
@@ -23,14 +23,14 @@ CXXFLAGS =  -hlist=m -hnomessage=7275 $(OPT)  $(DEFINE)  -lcrypto
 #==========================
 # Compiler commands
 #==========================
-CXXOBJ       = $(CXX) $(CXXFLAGS) -c 
+CXXOBJ       = $(CXX) $(CXXFLAGS) -c
 CXXLD         = $(CXX) $(CXXFLAGS)
 
 #==========================
 # Make the executable
 #==========================
 
-$(EXE): $(SRC) 
+$(EXE): $(SRC)
 	echo $(SRC)
 	$(CXXLD) $(SRC) -o $(EXE)
 
