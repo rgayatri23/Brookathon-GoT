@@ -215,9 +215,9 @@ void noflagOCC_solver(int number_bands, int ngpown, int ncouls, int *inv_igp_ind
         indinv[0:ncouls+1], achtemp_re[nstart:nend], achtemp_im[nstart:nend], wtilde_array[0:ngpown*ncouls], wx_array[nstart:nend])\
     reduction(+:achtemp_re0, achtemp_re1, achtemp_re2, achtemp_im0, achtemp_im1, achtemp_im2)//\
     num_gangs(number_bands*ngpown) vector_length(32)
-        for(int n1 = 0; n1<number_bands; ++n1)
-    {
     for(int my_igp=0; my_igp<ngpown; ++my_igp)
+    {
+        for(int n1 = 0; n1<number_bands; ++n1)
         {
             int indigp = inv_igp_index[my_igp];
             int igp = indinv[indigp];

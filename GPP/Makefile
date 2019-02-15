@@ -29,3 +29,4 @@ $(OBJ): $(SRC)
 clean:
 	rm -f $(OBJ) $(EXE)
 
+#CC gpp_cray.cpp -o gpp.ex -h acc,noomp
