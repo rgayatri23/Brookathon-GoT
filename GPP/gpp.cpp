@@ -149,8 +149,7 @@ void noflagOCC_solver(int number_bands, int ngpown, int ncouls, int *inv_igp_ind
 #pragma omp target teams distribute parallel for collapse(2) \
     map(to:aqsmtemp[0:number_bands*ncouls], vcoul[0:ncouls], inv_igp_index[0:ngpown], indinv[0:ncouls+1], \
     aqsntemp[0:number_bands*ncouls], I_eps_array[0:ngpown*ncouls], wx_array[nstart:nend], wtilde_array[0:ngpown*ncouls])\
-    reduction(+:ach_re0, ach_re1, ach_re2, ach_im0, ach_im1, ach_im2)\
-    map(tofrom:ach_re0, ach_re1, ach_re2, ach_im0, ach_im1, ach_im2)//\
+    reduction(+:ach_re0, ach_re1, ach_re2, ach_im0, ach_im1, ach_im2)//\
     num_teams(number_bands) thread_limit(32)
 #else
 #pragma omp target teams distribute parallel for collapse(2)\
@@ -291,25 +290,25 @@ int main(int argc, char** argv)
 //    }
 //    std::cout << "Number of OpenMP Threads = " << numThreads << endl;
 
-#if __OMPOFFLOAD__
-#pragma omp target map(tofrom: numTeams, numThreads)
-#pragma omp teams shared(numTeams) private(tid)
-    {
-        tid = omp_get_team_num();
-        if(tid == 0)
-        {
-            numTeams = omp_get_num_teams();
-#pragma omp parallel
-            {
-                int ttid = omp_get_thread_num();
-                if(ttid == 0)
-                    numThreads = omp_get_num_threads();
-            }
-        }
-    }
-    std::cout << "Number of OpenMP Teams = " << numTeams << std::endl;
-    std::cout << "Number of OpenMP DEVICE Threads = " << numThreads << std::endl;
-#endif
+//#if __OMPOFFLOAD__
+//#pragma omp target map(tofrom: numTeams, numThreads)
+//#pragma omp teams shared(numTeams) private(tid)
+//    {
+//        tid = omp_get_team_num();
+//        if(tid == 0)
+//        {
+//            numTeams = omp_get_num_teams();
+//#pragma omp parallel
+//            {
+//                int ttid = omp_get_thread_num();
+//                if(ttid == 0)
+//                    numThreads = omp_get_num_threads();
+//            }
+//        }
+//    }
+//    std::cout << "Number of OpenMP Teams = " << numTeams << std::endl;
+//    std::cout << "Number of OpenMP DEVICE Threads = " << numThreads << std::endl;
+//#endif
 
     //Printing out the params passed.
     std::cout << "Sizeof(CustomComplex<double> = " << sizeof(CustomComplex<double>) << " bytes" << std::endl;
