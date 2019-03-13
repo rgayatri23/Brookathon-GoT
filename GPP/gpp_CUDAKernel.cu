@@ -171,11 +171,13 @@ __global__ void gpp_2D_CUDAKernel_V2(int number_bands, int ngpown, int ncouls, i
 
             for(int ig = threadIdx.x; ig < ncouls; ig += blockDim.x)
             {
+		CustomComplex<double> wtilde_ig = wtilde_array[my_igp*ncouls+ig];
+		CustomComplex<double> sch_store1 = aqsntemp[n1*ncouls + ig] * I_eps_array[my_igp*ncouls+ig] * aqsmtemp_vcoul;
                 for(int iw = nstart; iw < nend; ++iw)
                 {
                     wdiff = wx_array[iw] - wtilde_array[my_igp*ncouls+ig];
-                    delw = wtilde_array[my_igp*ncouls+ig] * CustomComplex_conj(wdiff) * (1/CustomComplex_real((wdiff * CustomComplex_conj(wdiff))));
-                    sch_array = aqsntemp[n1*ncouls+ig] * delw * I_eps_array[my_igp*ncouls+ig] * aqsmtemp_vcoul;
+                    delw = wtilde_ig * CustomComplex_conj(wdiff) * (1/CustomComplex_real((wdiff * CustomComplex_conj(wdiff))));
+                    sch_array = sch_store1 * delw;
 
                     achtemp_re_loc[iw] += CustomComplex_real(sch_array);
                     achtemp_im_loc[iw] += CustomComplex_imag(sch_array);
@@ -197,7 +199,7 @@ void noflagOCC_cudaKernel(int number_bands, int ngpown, int ncouls, int *inv_igp
 {
     dim3 numBlocks(number_bands, ngpown);
     int numThreadsPerBlock = 64;
-    dim3 numThreads(64, 1, 1);
+    dim3 numThreads(32, 1, 1);
 
     printf("Launching a double dimension grid with numBlocks = (%d, %d) and %d threadsPerBlock \n", number_bands, ngpown, numThreadsPerBlock);
 
