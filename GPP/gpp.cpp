@@ -1,10 +1,12 @@
-//#include "../ComplexClass/cudaAlloc.h"
 #include "../ComplexClass/CustomComplex.h"
+#include "../ComplexClass/cudaAlloc.h"
 
+using namespace std;
 #define nstart 0
 #define nend 3
-#define __OMPOFFLOAD__ 1
-#define __reductionVersion__ 1
+
+#define CUDA_VER 1
+
 
 inline void reduce_achstemp(int n1, int number_bands, int* inv_igp_index, int ncouls, CustomComplex<double>  *aqsmtemp, CustomComplex<double> *aqsntemp, CustomComplex<double> *I_eps_array, CustomComplex<double> achstemp,  int* indinv, int ngpown, double* vcoul)
 {
@@ -130,113 +132,45 @@ void till_nvband(int number_bands, int nvband, int ngpown, int ncouls, CustomCom
     }
 }
 
-void noflagOCC_solver(int number_bands, int ngpown, int ncouls, int *inv_igp_index, int *indinv, double *wx_array, CustomComplex<double> *wtilde_array, CustomComplex<double> *aqsmtemp, CustomComplex<double> *aqsntemp, CustomComplex<double> *I_eps_array, double *vcoul, double *achtemp_re, double *achtemp_im, double &elapsedKernelTimer)
+void noflagOCC_solver(int number_bands, int ngpown, int ncouls, int *inv_igp_index, int *indinv, double *wx_array, CustomComplex<double> *wtilde_array, CustomComplex<double> *aqsmtemp, CustomComplex<double> *aqsntemp, CustomComplex<double> *I_eps_array, double *vcoul, double *achtemp_re, double *achtemp_im)
 {
-    timeval startKernelTimer, endKernelTimer;
-    //Vars to use for reduction
-    double ach_re0 = 0.00, ach_re1 = 0.00, ach_re2 = 0.00, \
-        ach_im0 = 0.00, ach_im1 = 0.00, ach_im2 = 0.00;
-
-#if __OMPOFFLOAD__
-#pragma omp target enter data map(alloc:aqsmtemp[0:number_bands*ncouls], vcoul[0:ncouls], inv_igp_index[0:ngpown], indinv[0:ncouls+1], \
-    aqsntemp[0:number_bands*ncouls], I_eps_array[0:ngpown*ncouls], wx_array[nstart:nend], wtilde_array[0:ngpown*ncouls])
-#pragma omp target update to(aqsmtemp[0:number_bands*ncouls], vcoul[0:ncouls], inv_igp_index[0:ngpown], indinv[0:ncouls+1], \
-    aqsntemp[0:number_bands*ncouls], I_eps_array[0:ngpown*ncouls], wx_array[nstart:nend], wtilde_array[0:ngpown*ncouls])
-
-    gettimeofday(&startKernelTimer, NULL);
-
-#if __reductionVersion__
-#pragma omp target teams distribute parallel for collapse(2) \
-    map(to:aqsmtemp[0:number_bands*ncouls], vcoul[0:ncouls], inv_igp_index[0:ngpown], indinv[0:ncouls+1], \
-    aqsntemp[0:number_bands*ncouls], I_eps_array[0:ngpown*ncouls], wx_array[nstart:nend], wtilde_array[0:ngpown*ncouls])\
-    reduction(+:ach_re0, ach_re1, ach_re2, ach_im0, ach_im1, ach_im2)//\
-    num_teams(number_bands) thread_limit(32)
-#else
-#pragma omp target teams distribute parallel for collapse(2)\
-    map(to:aqsmtemp[0:number_bands*ncouls], vcoul[0:ncouls], inv_igp_index[0:ngpown], indinv[0:ncouls+1], \
-    aqsntemp[0:number_bands*ncouls], I_eps_array[0:ngpown*ncouls], wx_array[nstart:nend], wtilde_array[0:ngpown*ncouls])\
-    map(tofrom:achtemp_re[nstart:nend], achtemp_im[nstart:nend])//\
-    num_teams(number_bands) thread_limit(128)
-#endif
-#else
-    gettimeofday(&startKernelTimer, NULL);
-#pragma omp parallel for collapse(2) \
-    reduction(+:ach_re0, ach_re1, ach_re2, ach_im0, ach_im1, ach_im2)
-#endif
-
-    for(int my_igp=0; my_igp<ngpown; ++my_igp)
+#pragma omp parallel for  default(shared) firstprivate(ngpown, ncouls, number_bands) reduction(+:achtemp_re[nstart:nend], achtemp_im[nstart:nend])
+    for(int n1 = 0; n1<number_bands; ++n1)
     {
-        for(int n1 = 0; n1<number_bands; ++n1)
+        for(int my_igp=0; my_igp<ngpown; ++my_igp)
         {
             int indigp = inv_igp_index[my_igp];
             int igp = indinv[indigp];
+
+            CustomComplex<double> wdiff(0.00, 0.00), delw(0.00, 0.00);
+
             double achtemp_re_loc[nend-nstart], achtemp_im_loc[nend-nstart];
             for(int iw = nstart; iw < nend; ++iw) {achtemp_re_loc[iw] = 0.00; achtemp_im_loc[iw] = 0.00;}
 
-//#if __reductionVersion__ && __OMPOFFLOAD__
-//#pragma omp parallel for\
-//    reduction(+:ach_re0, ach_re1, ach_re2, ach_im0, ach_im1, ach_im2)
-//#endif
             for(int ig = 0; ig<ncouls; ++ig)
             {
                 for(int iw = nstart; iw < nend; ++iw)
                 {
-                    CustomComplex<double> wdiff = CustomComplex_minus(&wx_array[iw], &wtilde_array[my_igp*ncouls +ig]);
-                    CustomComplex<double> wdiff_conj = CustomComplex_conj(&wdiff);
-                    CustomComplex<double> delw_store1 = CustomComplex_product(&wtilde_array[my_igp*ncouls +ig], &wdiff_conj);
-                    CustomComplex<double> delw_store2 = CustomComplex_product(&wdiff, &wdiff_conj);
-                    double delwr = 1/CustomComplex_real(&delw_store2);
-                    CustomComplex<double> delw = CustomComplex_product(&delw_store1, &delwr);
-                    CustomComplex<double> aqsmtemp_conj = CustomComplex_conj(&aqsmtemp[n1*ncouls+igp]);
-                    CustomComplex<double> sch_store1 = CustomComplex_product(&aqsmtemp_conj, &aqsntemp[n1*ncouls+igp]);
-                    CustomComplex<double> sch_store2 = CustomComplex_product(&delw, &I_eps_array[my_igp*ncouls +ig]);
-                    CustomComplex<double> sch_store3 = CustomComplex_product(&sch_store1, &sch_store2);
-                    CustomComplex<double> sch_array = CustomComplex_product(&sch_store3, 0.5*vcoul[igp]);
-#if __reductionVersion__
-                    achtemp_re_loc[iw] = CustomComplex_real(&sch_array);
-                    achtemp_im_loc[iw] = CustomComplex_imag(&sch_array);
-#else
-                    achtemp_re_loc[iw] += CustomComplex_real(&sch_array);
-                    achtemp_im_loc[iw] += CustomComplex_imag(&sch_array);
-#endif
+                    wdiff = wx_array[iw] - wtilde_array[my_igp*ncouls+ig]; //2 flops
+
+                    //2 conj + 2 * product + 1 mult + 1 divide = 17
+                    delw = wtilde_array[my_igp*ncouls+ig] * CustomComplex_conj(wdiff) * (1/CustomComplex_real((wdiff * CustomComplex_conj(wdiff))));
+
+                    //1 conj + 3 product + 1 mult + 1 real-mult = 22
+                    CustomComplex<double> sch_array = CustomComplex_conj(aqsmtemp[n1*ncouls+igp]) * aqsntemp[n1*ncouls+ig] * delw * I_eps_array[my_igp*ncouls+ig] * 0.5*vcoul[igp];
+
+                    //2 flops
+                    achtemp_re_loc[iw] += CustomComplex_real(sch_array);
+                    achtemp_im_loc[iw] += CustomComplex_imag(sch_array);
                 }
-#if __reductionVersion__
-                ach_re0 += achtemp_re_loc[0];
-                ach_re1 += achtemp_re_loc[1];
-                ach_re2 += achtemp_re_loc[2];
-                ach_im0 += achtemp_im_loc[0];
-                ach_im1 += achtemp_im_loc[1];
-                ach_im2 += achtemp_im_loc[2];
-#endif
             }
-#if !__reductionVersion__
             for(int iw = nstart; iw < nend; ++iw)
             {
-#pragma omp atomic
                 achtemp_re[iw] += achtemp_re_loc[iw];
-#pragma omp atomic
                 achtemp_im[iw] += achtemp_im_loc[iw];
             }
-#endif
         } //ngpown
     } //number_bands
-
-    gettimeofday(&endKernelTimer, NULL);
-    elapsedKernelTimer = (endKernelTimer.tv_sec - startKernelTimer.tv_sec) +1e-6*(endKernelTimer.tv_usec - startKernelTimer.tv_usec);
-
-#if __OMPOFFLOAD__
-#pragma omp target exit data map(delete: aqsmtemp[0:number_bands*ncouls], vcoul[0:ncouls], inv_igp_index[0:ngpown], indinv[0:ncouls+1], \
-    aqsntemp[0:number_bands*ncouls], I_eps_array[0:ngpown*ncouls], wx_array[nstart:nend], wtilde_array[0:ngpown*ncouls])
-#endif
-
-#if __reductionVersion__
-    achtemp_re[0] = ach_re0;
-    achtemp_re[1] = ach_re1;
-    achtemp_re[2] = ach_re2;
-    achtemp_im[0] = ach_im0;
-    achtemp_im[1] = ach_im1;
-    achtemp_im[2] = ach_im2;
-#endif
 }
 
 int main(int argc, char** argv)
@@ -248,12 +182,6 @@ int main(int argc, char** argv)
         std::cout << " ./a.out <number_bands> <number_valence_bands> <number_plane_waves> <nodes_per_mpi_group> " << endl;
         exit (0);
     }
-
-#if __OMPOFFLOAD__
-    cout << "OpenMP 4.5" << endl;
-#else
-    cout << "OpenMP 3.0" << endl;
-#endif
 
 //Input parameters stored in these variables.
     const int number_bands = atoi(argv[1]);
@@ -274,11 +202,6 @@ int main(int argc, char** argv)
     const double e_n1kq= 6.0;
     const double occ=1.0;
 
-    //Start the timer before the work begins.
-    double elapsedKernelTimer, elapsedTimer;
-    timeval startTimer, endTimer;
-    gettimeofday(&startTimer, NULL);
-
 
     //OpenMP Printing of threads on Host and Device
 //    int tid, numThreads, numTeams;
@@ -289,26 +212,6 @@ int main(int argc, char** argv)
 //            numThreads = omp_get_num_threads();
 //    }
 //    std::cout << "Number of OpenMP Threads = " << numThreads << endl;
-
-//#if __OMPOFFLOAD__
-//#pragma omp target map(tofrom: numTeams, numThreads)
-//#pragma omp teams shared(numTeams) private(tid)
-//    {
-//        tid = omp_get_team_num();
-//        if(tid == 0)
-//        {
-//            numTeams = omp_get_num_teams();
-//#pragma omp parallel
-//            {
-//                int ttid = omp_get_thread_num();
-//                if(ttid == 0)
-//                    numThreads = omp_get_num_threads();
-//            }
-//        }
-//    }
-//    std::cout << "Number of OpenMP Teams = " << numTeams << std::endl;
-//    std::cout << "Number of OpenMP DEVICE Threads = " << numThreads << std::endl;
-//#endif
 
     //Printing out the params passed.
     std::cout << "Sizeof(CustomComplex<double> = " << sizeof(CustomComplex<double>) << " bytes" << std::endl;
@@ -402,29 +305,75 @@ int main(int argc, char** argv)
             if(wx_array[iw] < to1) wx_array[iw] = to1;
         }
 
+#if CUDA_VER
+    CustomComplex<double> *d_aqsmtemp, *d_aqsntemp, *d_I_eps_array, *d_wtilde_array;
+    int *d_inv_igp_index, *d_indinv;
+    double *d_achtemp_re, *d_achtemp_im, *d_wx_array, *d_vcoul;
+
+    //Allocate Device Memory
+    CudaSafeCall(cudaMalloc((void**) &d_inv_igp_index, ngpown*sizeof(int)));
+    CudaSafeCall(cudaMalloc((void**) &d_indinv, (ncouls+1)*sizeof(int)));
+    CudaSafeCall(cudaMalloc((void**) &d_wx_array, (nend-nstart)*sizeof(double)));
+    CudaSafeCall(cudaMalloc((void**) &d_wtilde_array, ngpown*ncouls*sizeof(CustomComplex<double>)));
+    CudaSafeCall(cudaMalloc((void**) &d_aqsntemp, number_bands*ncouls*sizeof(CustomComplex<double>)));
+    CudaSafeCall(cudaMalloc((void**) &d_aqsmtemp, number_bands*ncouls*sizeof(CustomComplex<double>)));
+    CudaSafeCall(cudaMalloc((void**) &d_I_eps_array, ngpown*ncouls*sizeof(CustomComplex<double>)));
+    CudaSafeCall(cudaMalloc((void**) &d_vcoul, ncouls*sizeof(double)));
+    CudaSafeCall(cudaMalloc((void**) &d_achtemp_re, (nend-nstart)*sizeof(double)));
+    CudaSafeCall(cudaMalloc((void**) &d_achtemp_im, (nend-nstart)*sizeof(double)));
+
+    //Cuda memcpy
+    CudaSafeCall(cudaMemcpy(d_inv_igp_index, inv_igp_index, ngpown*sizeof(int), cudaMemcpyHostToDevice));
+    CudaSafeCall(cudaMemcpy(d_indinv, indinv, (ncouls+1)*sizeof(int), cudaMemcpyHostToDevice));
+    CudaSafeCall(cudaMemcpy(d_wx_array, wx_array, (nend-nstart)*sizeof(double), cudaMemcpyHostToDevice));
+    CudaSafeCall(cudaMemcpy(d_wtilde_array, wtilde_array, ngpown*ncouls*sizeof(CustomComplex<double>), cudaMemcpyHostToDevice));
+    CudaSafeCall(cudaMemcpy(d_aqsmtemp, aqsmtemp, number_bands*ncouls*sizeof(CustomComplex<double>), cudaMemcpyHostToDevice));
+    CudaSafeCall(cudaMemcpy(d_aqsntemp, aqsntemp, number_bands*ncouls*sizeof(CustomComplex<double>), cudaMemcpyHostToDevice));
+    CudaSafeCall(cudaMemcpy(d_I_eps_array, I_eps_array, ngpown*ncouls*sizeof(CustomComplex<double>), cudaMemcpyHostToDevice));
+    CudaSafeCall(cudaMemcpy(d_vcoul, vcoul, ncouls*sizeof(double), cudaMemcpyHostToDevice));
+    CudaSafeCall(cudaMemcpy(d_achtemp_re, achtemp_re, (nend-nstart)*sizeof(double), cudaMemcpyHostToDevice));
+    CudaSafeCall(cudaMemcpy(d_achtemp_im, achtemp_im, (nend-nstart)*sizeof(double), cudaMemcpyHostToDevice));
+#endif
+    //Start the timer before the work begins.
+    timeval startTimer, endTimer;
+    gettimeofday(&startTimer, NULL);
+
     //0-nvband iterations
-    till_nvband(number_bands, nvband, ngpown, ncouls, asxtemp, wx_array, wtilde_array, aqsmtemp, aqsntemp, I_eps_array, inv_igp_index, indinv, vcoul);
+//    till_nvband(number_bands, nvband, ngpown, ncouls, asxtemp, wx_array, wtilde_array, aqsmtemp, aqsntemp, I_eps_array, inv_igp_index, indinv, vcoul);
 
-    //reduction on achstemp
-#pragma omp parallel for
-    for(int n1 = 0; n1<number_bands; ++n1)
-        reduce_achstemp(n1, number_bands, inv_igp_index, ncouls,aqsmtemp, aqsntemp, I_eps_array, achstemp, indinv, ngpown, vcoul);
+    //main-loop with output on achtemp divide among achtemp_re && achtemp_im
+#if CUDA_VER
+//    noflagOCC_cudaKernel(number_bands, ngpown, ncouls, d_inv_igp_index, d_indinv, d_wx_array, d_wtilde_array, d_aqsmtemp, d_aqsntemp, d_I_eps_array, d_vcoul, d_achtemp_re, d_achtemp_im);
+//    noflagOCC_cudaKernel(number_bands, ngpown, ncouls, inv_igp_index, indinv, wx_array, wtilde_array, aqsmtemp, aqsntemp, I_eps_array, vcoul, achtemp_re, achtemp_im);
 
-    noflagOCC_solver(number_bands, ngpown, ncouls, inv_igp_index, indinv, wx_array, wtilde_array, aqsmtemp, aqsntemp, I_eps_array, vcoul, achtemp_re, achtemp_im, elapsedKernelTimer);
+    noflagOCC_cudaKernel(number_bands, ngpown, ncouls, d_inv_igp_index, d_indinv, d_wx_array, d_wtilde_array, d_aqsmtemp, d_aqsntemp, d_I_eps_array, d_vcoul, d_achtemp_re, d_achtemp_im);
+    cudaDeviceSynchronize();
+    CudaSafeCall(cudaMemcpy(achtemp_re, d_achtemp_re, (nend-nstart)*sizeof(double), cudaMemcpyDeviceToHost));
+    CudaSafeCall(cudaMemcpy(achtemp_im, d_achtemp_im, (nend-nstart)*sizeof(double), cudaMemcpyDeviceToHost));
 
+#else
+    noflagOCC_solver(number_bands, ngpown, ncouls, inv_igp_index, indinv, wx_array, wtilde_array, aqsmtemp, aqsntemp, I_eps_array, vcoul, achtemp_re, achtemp_im);
+#endif
+
+
+    //Time Taken
     gettimeofday(&endTimer, NULL);
-    elapsedTimer = (endTimer.tv_sec - startTimer.tv_sec) +1e-6*(endTimer.tv_usec - startTimer.tv_usec);
+    double elapsedTimer = (endTimer.tv_sec - startTimer.tv_sec) +1e-6*(endTimer.tv_usec - startTimer.tv_usec);
+
+    printf(" \n Final achstemp\n");
+    achstemp.print();
 
     printf("\n Final achtemp\n");
+
     for(int iw=nstart; iw<nend; ++iw)
     {
         CustomComplex<double> tmp(achtemp_re[iw], achtemp_im[iw]);
         achtemp[iw] = tmp;
+//        achtemp[iw].print();
     }
         achtemp[0].print();
 
-    cout << "********** Kernel Time Taken **********= " << elapsedKernelTimer << " secs" << endl;
-    cout << "********** Total Time Taken **********= " << elapsedTimer << " secs" << endl;
+    cout << "********** Kernel Time Taken **********= " << elapsedTimer << " secs" << endl;
 
     free(acht_n1_loc);
     free(achtemp);

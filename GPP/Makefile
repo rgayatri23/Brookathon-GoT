@@ -1,64 +1,36 @@
-EXE = gpp.ex
-SRC = gpp.cpp
+#EXE = gpp_GPUComplex.ex
+#SRC1 = gpp_GPUComplex.cpp 
+#SRC2 = gpp_GPUComplex_CUDAKernel.cu
+EXE = gpp_CUDA.ex
+SRC1 = gpp.cpp 
+SRC2 = gpp_CUDAKernel.cu
 
-#CXX = xlc++_r
-#CXX = CC
-#CXX = icc
-#CXX = clang++
-CXX = g++
+
+CXX = nvcc
 
 LINK = ${CXX}
 
-ifeq ($(CXX),icc)
-    CXXFLAGS=-O3 -std=c++11 -qopenmp -qopt-report=5
-    CXXFLAGS+=-qopenmp-offload=host #For offloading
-    #CXXFLAGS+=-qno-openmp-offload #For disabling offloading
-    CXXFLAGS+=-xCORE-AVX2
-    #CXXFLAGS+=-xMIC-AVX512
-    LINKFLAGS=-qopenmp -qopenmp-offload=mic
-    #LINKFLAGS+=-dynamic #Dynamic flag gives runtime issues with OMP4.5
-endif
+ifeq ($(CXX),nvcc)
+	CXXFLAGS= -g -O3 -std=c++11 -Wno-deprecated-gpu-targets 
+	CXXFLAGS+=-Xptxas -v #--maxrregcount=100 #output usage of registers
+	CXXFLAGS+=-fmad=true
+	#CXXFLAGS+=-arch=sm_60
+	CXXFLAGS+=-arch=sm_70
+	LINKFLAGS=-Wno-deprecated-gpu-targets
+endif 
 
-ifeq ($(CXX),CC)
-    CXXFLAGS=-O3 -std=c++11 -qopenmp -qopt-report=5
-    CXXFLAGS+=-qopenmp-offload=host #For offloading
-    #CXXFLAGS+=-qno-openmp-offload #For disabling offloading
-    #CXXFLAGS+=-xCORE-AVX2
-    CXXFLAGS+=-xMIC-AVX512
-    LINKFLAGS=-qopenmp #-qopenmp-offload=mic
-    #LINKFLAGS+=-dynamic #Dynamic flag gives runtime issues with OMP4.5
-endif
+OBJ1 = $(SRC1:.cpp=.o)
+OBJ2 = $(SRC2:.cu=.o)
 
-ifeq ($(CXX),g++)
-	CXXFLAGS= -g -O3 -std=c++11 -fopenmp -foffload="-lm" -foffload=nvptx-none
-	LINKFLAGS=-fopenmp -foffload="-lm" -foffload=nvptx-none
-endif
+$(EXE): $(OBJ2) $(OBJ1) 
+	$(CXX) $(OBJ2) $(OBJ1) -o $(EXE) $(LINKFLAGS)
 
-ifeq ($(CXX),xlc++_r)
-	CXXFLAGS=-O3 -std=gnu++11 -qsmp=noauto:omp -qoffload #-Xptxas -v
-	LINKFLAGS=-qsmp=noauto:omp -qoffload
-endif
+$(OBJ1): $(SRC1) 
+	$(CXX) -c $(SRC1) $(CXXFLAGS)
 
-ifeq ($(CXX),clang++)
-	CXXFLAGS=-O3 -std=c++11 -fopenmp -fopenmp-targets=nvptx64-nvidia-cuda #--cuda-path=${OLCF_CUDA_ROOT}
-	LINKFLAGS=-fopenmp -fopenmp-targets=nvptx64-nvidia-cuda #--cuda-path=${OLCF_CUDA_ROOT}
-endif
+$(OBJ2): $(SRC2) 
+	$(CXX) -c $(SRC2) $(CXXFLAGS)
 
-ifeq ($(CXX),icc)
-	CXXFLAGS=-O3 -qopenmp -qopt-report=5 -g
-	CXXFLAGS+=-xCORE_AVX2
-#	CXXFLAGS+=-xMIC_AVX512
-	LINKFLAGS=-qopenmp -dynamic
-endif
-
-OBJ = $(SRC:.cpp=.o)
-
-$(EXE): $(OBJ)
-	$(CXX) $(OBJ) -o $(EXE) $(LINKFLAGS)
-
-$(OBJ1): $(SRC)
-	$(CXX) -c $(SRC) $(CXXFLAGS)
-
-clean:
-	rm -f $(OBJ) $(EXE)
+clean: 
+	rm -f $(OBJ1) $(OBJ2) $(EXE)
 
