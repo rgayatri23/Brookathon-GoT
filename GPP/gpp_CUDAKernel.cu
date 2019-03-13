@@ -160,7 +160,7 @@ __global__ void gpp_2D_CUDAKernel_V2(int number_bands, int ngpown, int ncouls, i
     __shared__ double achtemp_re_loc[nend-nstart], achtemp_im_loc[nend-nstart];
 
     for(int n1 = blockIdx.x; n1 < number_bands; n1 += gridDim.x)
-    {
+   {
         for(int my_igp = blockIdx.y; my_igp < ngpown; my_igp += gridDim.y)
         {
             int indigp = inv_igp_index[my_igp];
@@ -195,11 +195,13 @@ template<class T>
 void noflagOCC_cudaKernel(int number_bands, int ngpown, int ncouls, int *inv_igp_index, int *indinv, double *wx_array, CustomComplex<T> *wtilde_array, CustomComplex<T> *aqsmtemp, CustomComplex<T> *aqsntemp, CustomComplex<T> *I_eps_array, double *vcoul, T *achtemp_re, T *achtemp_im)
 {
     dim3 numBlocks(number_bands, ngpown);
-    int numThreadsPerBlock = 32;
+    int numThreadsPerBlock = 64;
+    dim3 numThreads(64, 1, 1);
+
     printf("Launching a double dimension grid with numBlocks = (%d, %d) and %d threadsPerBlock \n", number_bands, ngpown, numThreadsPerBlock);
 
 //    gpp_2D_CUDAKernel<<<numBlocks, numThreadsPerBlock>>> (number_bands, ngpown, ncouls, inv_igp_index, indinv, wx_array, wtilde_array, aqsmtemp, aqsntemp, I_eps_array, vcoul, achtemp_re, achtemp_im, numThreadsPerBlock);
-    gpp_2D_CUDAKernel_V2<<<numBlocks,32>>>(number_bands, ngpown, ncouls, inv_igp_index, indinv, wx_array, wtilde_array, aqsmtemp, aqsntemp, I_eps_array, vcoul, achtemp_re, achtemp_im, numThreadsPerBlock);
+    gpp_2D_CUDAKernel_V2<<<numBlocks,numThreads>>>(number_bands, ngpown, ncouls, inv_igp_index, indinv, wx_array, wtilde_array, aqsmtemp, aqsntemp, I_eps_array, vcoul, achtemp_re, achtemp_im, numThreadsPerBlock);
 }
 
 
