@@ -137,7 +137,6 @@ void noflagOCC_solver(int number_bands, int ngpown, int ncouls, int *inv_igp_ind
     double ach_re0 = 0.00, ach_re1 = 0.00, ach_re2 = 0.00, \
         ach_im0 = 0.00, ach_im1 = 0.00, ach_im2 = 0.00;
 
-#if __OMPOFFLOAD__ 
 #pragma omp target enter data map(alloc:aqsmtemp[0:number_bands*ncouls], vcoul[0:ncouls], inv_igp_index[0:ngpown], indinv[0:ncouls+1], \
     aqsntemp[0:number_bands*ncouls], I_eps_array[0:ngpown*ncouls], wx_array[nstart:nend], wtilde_array[0:ngpown*ncouls])
 #pragma omp target update to(aqsmtemp[0:number_bands*ncouls], vcoul[0:ncouls], inv_igp_index[0:ngpown], indinv[0:ncouls+1], \
@@ -145,26 +144,12 @@ void noflagOCC_solver(int number_bands, int ngpown, int ncouls, int *inv_igp_ind
 
     gettimeofday(&startKernelTimer, NULL);
 
-#if __reductionVersion__
 #pragma omp target teams distribute parallel for collapse(2) \
     map(to:aqsmtemp[0:number_bands*ncouls], vcoul[0:ncouls], inv_igp_index[0:ngpown], indinv[0:ncouls+1], \
     aqsntemp[0:number_bands*ncouls], I_eps_array[0:ngpown*ncouls], wx_array[nstart:nend], wtilde_array[0:ngpown*ncouls])\
     reduction(+:ach_re0, ach_re1, ach_re2, ach_im0, ach_im1, ach_im2)\
     map(tofrom:ach_re0, ach_re1, ach_re2, ach_im0, ach_im1, ach_im2)//\
     num_teams(number_bands) thread_limit(32)
-#else
-#pragma omp target teams distribute parallel for collapse(2)\
-    map(to:aqsmtemp[0:number_bands*ncouls], vcoul[0:ncouls], inv_igp_index[0:ngpown], indinv[0:ncouls+1], \
-    aqsntemp[0:number_bands*ncouls], I_eps_array[0:ngpown*ncouls], wx_array[nstart:nend], wtilde_array[0:ngpown*ncouls])\
-    map(tofrom:achtemp_re[nstart:nend], achtemp_im[nstart:nend])//\
-    num_teams(number_bands) thread_limit(128)
-#endif
-#else
-    gettimeofday(&startKernelTimer, NULL);
-#pragma omp parallel for collapse(2) \
-    reduction(+:ach_re0, ach_re1, ach_re2, ach_im0, ach_im1, ach_im2)
-#endif
-
     for(int my_igp=0; my_igp<ngpown; ++my_igp)
     {
         for(int n1 = 0; n1<number_bands; ++n1) 
@@ -173,71 +158,46 @@ void noflagOCC_solver(int number_bands, int ngpown, int ncouls, int *inv_igp_ind
             int igp = indinv[indigp];
             double achtemp_re_loc[nend-nstart], achtemp_im_loc[nend-nstart];
             for(int iw = nstart; iw < nend; ++iw) {achtemp_re_loc[iw] = 0.00; achtemp_im_loc[iw] = 0.00;}
+            CustomComplex<double> delw(0.0, 0.0), wdiff(0.0, 0.0), sch_array(0.0, 0.0);
+            CustomComplex<double> aqsmtemp_conj = CustomComplex_conj(&aqsmtemp[n1*ncouls+igp]);
+            CustomComplex<double> sch_store1 = aqsmtemp_conj *  aqsntemp[n1*ncouls+igp] * 0.5*vcoul[igp];
 
-//#if __reductionVersion__ && __OMPOFFLOAD__
 //#pragma omp parallel for\
-//    reduction(+:ach_re0, ach_re1, ach_re2, ach_im0, ach_im1, ach_im2)
-//#endif
+    reduction(+:ach_re0, ach_re1, ach_re2, ach_im0, ach_im1, ach_im2)
             for(int ig = 0; ig<ncouls; ++ig)
             {
+                CustomComplex<double> wtilde_ig = wtilde_array[my_igp*ncouls + ig];
                 for(int iw = nstart; iw < nend; ++iw)
                 {
-                    CustomComplex<double> wdiff = CustomComplex_minus(&wx_array[iw], &wtilde_array[my_igp*ncouls +ig]);
-                    CustomComplex<double> wdiff_conj = CustomComplex_conj(&wdiff);
-                    CustomComplex<double> delw_store1 = CustomComplex_product(&wtilde_array[my_igp*ncouls +ig], &wdiff_conj);
-                    CustomComplex<double> delw_store2 = CustomComplex_product(&wdiff, &wdiff_conj);
-                    double delwr = 1/CustomComplex_real(&delw_store2);
-                    CustomComplex<double> delw = CustomComplex_product(&delw_store1, &delwr);
-                    CustomComplex<double> aqsmtemp_conj = CustomComplex_conj(&aqsmtemp[n1*ncouls+igp]);
-                    CustomComplex<double> sch_store1 = CustomComplex_product(&aqsmtemp_conj, &aqsntemp[n1*ncouls+igp]);
-                    CustomComplex<double> sch_store2 = CustomComplex_product(&delw, &I_eps_array[my_igp*ncouls +ig]);
-                    CustomComplex<double> sch_store3 = CustomComplex_product(&sch_store1, &sch_store2);
-                    CustomComplex<double> sch_array = CustomComplex_product(&sch_store3, 0.5*vcoul[igp]);
-#if __reductionVersion__
+                    wdiff = wx_array[iw] - wtilde_array[my_igp*ncouls+ig];
+                    delw = wtilde_ig * CustomComplex_conj(wdiff) * (1/CustomComplex_real((wdiff * CustomComplex_conj(wdiff))));
+                    sch_array = delw  * I_eps_array[my_igp*ncouls +ig] * sch_store1;
+
                     achtemp_re_loc[iw] = CustomComplex_real(&sch_array);
                     achtemp_im_loc[iw] = CustomComplex_imag(&sch_array);
-#else
-                    achtemp_re_loc[iw] += CustomComplex_real(&sch_array);
-                    achtemp_im_loc[iw] += CustomComplex_imag(&sch_array);
-#endif
                 }
-#if __reductionVersion__
                 ach_re0 += achtemp_re_loc[0];
                 ach_re1 += achtemp_re_loc[1];
                 ach_re2 += achtemp_re_loc[2];
                 ach_im0 += achtemp_im_loc[0];
                 ach_im1 += achtemp_im_loc[1];
                 ach_im2 += achtemp_im_loc[2];
-#endif
             }
-#if !__reductionVersion__
-            for(int iw = nstart; iw < nend; ++iw)
-            {
-#pragma omp atomic
-                achtemp_re[iw] += achtemp_re_loc[iw];
-#pragma omp atomic
-                achtemp_im[iw] += achtemp_im_loc[iw];
-            }
-#endif
         } //ngpown
     } //number_bands
 
     gettimeofday(&endKernelTimer, NULL);
     elapsedKernelTimer = (endKernelTimer.tv_sec - startKernelTimer.tv_sec) +1e-6*(endKernelTimer.tv_usec - startKernelTimer.tv_usec);
 
-#if __OMPOFFLOAD__
 #pragma omp target exit data map(delete: aqsmtemp[0:number_bands*ncouls], vcoul[0:ncouls], inv_igp_index[0:ngpown], indinv[0:ncouls+1], \
     aqsntemp[0:number_bands*ncouls], I_eps_array[0:ngpown*ncouls], wx_array[nstart:nend], wtilde_array[0:ngpown*ncouls])
-#endif
 
-#if __reductionVersion__
     achtemp_re[0] = ach_re0;
     achtemp_re[1] = ach_re1;
     achtemp_re[2] = ach_re2;
     achtemp_im[0] = ach_im0;
     achtemp_im[1] = ach_im1;
     achtemp_im[2] = ach_im2;
-#endif
 }
 
 int main(int argc, char** argv)
