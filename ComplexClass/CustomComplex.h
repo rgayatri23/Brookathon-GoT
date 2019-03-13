@@ -15,8 +15,8 @@ using namespace std;
 template<class type>
 
 class CustomComplex {
-#pragma omp declare target 
-    private : 
+#pragma omp declare target
+    private :
     type x;
     type y;
 
@@ -104,7 +104,7 @@ class CustomComplex {
         this->x = val;
     }
 
-    void set_imag(double val) 
+    void set_imag(double val)
     {
         this->y = val;
     }
@@ -224,14 +224,27 @@ class CustomComplex {
 
     template<class T>
      friend inline void CustomComplex_minusEquals(CustomComplex<T>* a, const CustomComplex<T>* b) ;
-#pragma omp end declare target 
+
+    template<class T>
+    friend inline void CustomComplex_print(const CustomComplex<T>& src);
+
+#pragma omp end declare target
 };
 
 
-/* Return the conjugate of a complex number 
+#pragma omp declare target
+
+/*Print the complex number*/
+template<class T>
+inline void CustomComplex_print(const CustomComplex<T>& src)
+{
+    printf("( %f, %f) ", src.x, src.y);
+    printf("\n");
+}
+
+/* Return the conjugate of a complex number
 flop
 */
-#pragma omp declare target 
 template<class T>
 inline CustomComplex<T> CustomComplex_conj(const CustomComplex<T>* src) {
     T re_this = src->x;
@@ -249,7 +262,7 @@ inline CustomComplex<T> CustomComplex_conj(const CustomComplex<T>& src) {
 }
 
 /*
- * Return the absolute of a complex number 
+ * Return the absolute of a complex number
  */
 template<class T>
 inline double CustomComplex_abs(const CustomComplex<T>& src) {
@@ -261,7 +274,7 @@ inline double CustomComplex_abs(const CustomComplex<T>& src) {
 }
 
 /*
- * Return the real part of a complex number 
+ * Return the real part of a complex number
  */
 template<class T>
 inline double CustomComplex_real( const CustomComplex<T>* src) {
@@ -274,7 +287,7 @@ inline double CustomComplex_real( const CustomComplex<T>& src) {
 }
 
 /*
- * Return the imaginary part of a complex number 
+ * Return the imaginary part of a complex number
  */
 template<class T>
 inline double CustomComplex_imag( const CustomComplex<T>* src) {
@@ -301,7 +314,7 @@ inline CustomComplex<T> CustomComplex_product(const CustomComplex<T>* src, T b) 
 }
 
 template<class T>
-inline CustomComplex<T> CustomComplex_product(const CustomComplex<T>* a, const CustomComplex<T>* b){ 
+inline CustomComplex<T> CustomComplex_product(const CustomComplex<T>* a, const CustomComplex<T>* b){
     T x_this = a->x * b->x - a->y*b->y ;
     T y_this = a->x * b->y + a->y*b->x ;
     CustomComplex<T> result(x_this, y_this);
@@ -309,7 +322,7 @@ inline CustomComplex<T> CustomComplex_product(const CustomComplex<T>* a, const C
 }
 
 template<class T>
-inline CustomComplex<T> CustomComplex_minus(const CustomComplex<T>* a, const CustomComplex<T>* b){ 
+inline CustomComplex<T> CustomComplex_minus(const CustomComplex<T>* a, const CustomComplex<T>* b){
         CustomComplex<T> result(a->x - b->x, a->y - b->y);
         return result;
 }
@@ -321,7 +334,7 @@ inline CustomComplex<T> CustomComplex_minus(const T* a, const CustomComplex<T>* 
 }
 
 template<class T>
-inline CustomComplex<T> CustomComplex_plus(const CustomComplex<T>* a, const CustomComplex<T>* b){ 
+inline CustomComplex<T> CustomComplex_plus(const CustomComplex<T>* a, const CustomComplex<T>* b){
         CustomComplex<T> result(a->x + b->x, a->y + b->y);
         return result;
 }
@@ -332,13 +345,13 @@ inline void CustomComplex_equals(const CustomComplex<T>* src, CustomComplex<T>* 
 }
 
 template<class T>
-inline void CustomComplex_plusEquals(CustomComplex<T>* a, const CustomComplex<T>* b){ 
+inline void CustomComplex_plusEquals(CustomComplex<T>* a, const CustomComplex<T>* b){
         a->x += b->x ;
         a->y += b->y ;
 }
 
 template<class T>
-inline void CustomComplex_minusEquals(CustomComplex<T>* a, const CustomComplex<T>* b){ 
+inline void CustomComplex_minusEquals(CustomComplex<T>* a, const CustomComplex<T>* b){
         a->x -= b->x ;
         a->y -= b->y ;
 }
@@ -387,6 +400,6 @@ void achDtemp_Kernel(int number_bands, int nvband, int nfreqeval, int ncouls, in
 
 void achDtemp_cor_Kernel(int number_bands, int nvband, int nfreqeval, int ncouls, int ngpown, int nFreq, double freqevalmin, double freqevalstep, double *ekq, double *dFreqGrid, int *inv_igp_index, int *indinv, CustomComplex<double> *aqsmtemp, CustomComplex<double> *aqsntemp, double *vcoul, CustomComplex<double> *I_epsR_array, CustomComplex<double> *I_epsA_array, double *achDtemp_cor_re, double *achDtemp_cor_im, double &elapsedTimeKernel);
 
-#pragma omp end declare target 
+#pragma omp end declare target
 #endif
 
