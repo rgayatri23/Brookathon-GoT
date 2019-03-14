@@ -156,23 +156,23 @@ __global__ void gpp_2D_CUDAKernel(int number_bands, int ngpown, int ncouls, int 
 
 __global__ void gpp_2D_CUDAKernel_V2(int number_bands, int ngpown, int ncouls, int *inv_igp_index, int *indinv, double *wx_array, CustomComplex<double> *wtilde_array, CustomComplex<double> *aqsmtemp, CustomComplex<double> *aqsntemp, CustomComplex<double> *I_eps_array, double *vcoul, double *achtemp_re, double *achtemp_im, int numThreadsPerBlock)
 {
-    CustomComplex<double> wdiff(0.00, 0.00), delw(0.00, 0.00), sch_array(0.00, 0.00);
 
     for(int n1 = blockIdx.x; n1 < number_bands; n1 += gridDim.x)
    {
         for(int my_igp = blockIdx.y; my_igp < ngpown; my_igp += gridDim.y)
         {
+            CustomComplex<double> wdiff(0.00, 0.00), delw(0.00, 0.00), sch_array(0.00, 0.00);
             int indigp = inv_igp_index[my_igp];
             int igp = indinv[indigp];
-	    CustomComplex<double> aqsmtemp_vcoul = CustomComplex_conj(aqsmtemp[n1*ncouls+igp]) * 0.5*vcoul[igp];
+            CustomComplex<double> aqsmtemp_vcoul = CustomComplex_conj(aqsmtemp[n1*ncouls+igp]) * 0.5*vcoul[igp];
 
-	    double achtemp_re_loc[nend-nstart], achtemp_im_loc[nend-nstart];
+            double achtemp_re_loc[nend-nstart], achtemp_im_loc[nend-nstart];
             for(int iw = nstart; iw < nend; ++iw) {achtemp_re_loc[iw] = 0.00; achtemp_im_loc[iw] = 0.00;}
 
             for(int ig = threadIdx.x; ig < ncouls; ig += blockDim.x)
             {
-		CustomComplex<double> wtilde_ig = wtilde_array[my_igp*ncouls+ig];
-		CustomComplex<double> sch_store1 = aqsntemp[n1*ncouls + ig] * I_eps_array[my_igp*ncouls+ig] * aqsmtemp_vcoul;
+                CustomComplex<double> wtilde_ig = wtilde_array[my_igp*ncouls+ig];
+                CustomComplex<double> sch_store1 = aqsntemp[n1*ncouls + ig] * I_eps_array[my_igp*ncouls+ig] * aqsmtemp_vcoul;
                 for(int iw = nstart; iw < nend; ++iw)
                 {
                     wdiff = wx_array[iw] - wtilde_array[my_igp*ncouls+ig];
@@ -184,11 +184,11 @@ __global__ void gpp_2D_CUDAKernel_V2(int number_bands, int ngpown, int ncouls, i
                 }
             }
 	    //Add up the locally stored values
-	    for(int iw = nstart; iw < nend; ++iw)
-	    {
-		atomicAdd(&achtemp_re[iw] , achtemp_re_loc[iw] );
-		atomicAdd(&achtemp_im[iw] , achtemp_im_loc[iw] );
-	    }
+            for(int iw = nstart; iw < nend; ++iw)
+            {
+                atomicAdd(&achtemp_re[iw] , achtemp_re_loc[iw] );
+                atomicAdd(&achtemp_im[iw] , achtemp_im_loc[iw] );
+            }
         } //ngpown
     } //number_bands
 
