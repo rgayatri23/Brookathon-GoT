@@ -7,6 +7,17 @@ using namespace std;
 
 #define CUDA_VER 1
 
+inline void correntess(CustomComplex<double> result)
+{
+    double re_diff = result.get_real() - -264241151.997370;
+    double im_diff = result.get_imag() - 1321205760.015211;
+
+    if(re_diff < 0.00001 && im_diff < 0.00001)
+        printf("\n!!!! SUCCESS - !!!! Correctness test passed :-D :-D\n\n");
+    else
+        printf("\n!!!! FAILURE - Correctness test failed :-( :-(  \n");
+}
+
 
 inline void reduce_achstemp(int n1, int number_bands, int* inv_igp_index, int ncouls, CustomComplex<double>  *aqsmtemp, CustomComplex<double> *aqsntemp, CustomComplex<double> *I_eps_array, CustomComplex<double> achstemp,  int* indinv, int ngpown, double* vcoul)
 {
@@ -371,7 +382,9 @@ int main(int argc, char** argv)
         achtemp[iw] = tmp;
 //        achtemp[iw].print();
     }
-        achtemp[0].print();
+    //    achtemp[0].print();
+    //Correctness check
+    correntess(achtemp[0]);
 
     cout << "********** Kernel Time Taken **********= " << elapsedTimer << " secs" << endl;
 

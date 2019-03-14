@@ -199,7 +199,7 @@ void noflagOCC_cudaKernel(int number_bands, int ngpown, int ncouls, int *inv_igp
 {
     dim3 numBlocks(number_bands, ngpown);
     int numThreadsPerBlock = 64;
-    dim3 numThreads(32, 1, 1);
+    dim3 numThreads(64, 1, 1);
 
     printf("Launching a double dimension grid with numBlocks = (%d, %d) and %d threadsPerBlock \n", number_bands, ngpown, numThreadsPerBlock);
 
