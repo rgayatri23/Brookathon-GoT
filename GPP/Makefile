@@ -1,16 +1,16 @@
 EXE = gpp.ex
-SRC = gpp.cpp 
+SRC = gpp.cpp
 
 #CXX = xlc++_r
 #CXX = g++
-#CXX = icc
-CXX = CC
+CXX = icc
+#CXX = CC
 
 LINK = ${CXX}
 
 ifeq ($(CXX),icc)
 ##Intel compiler flag
-	CXXFLAGS= -g -O3 -qopenmp -qopt-report=5 -std=c++11
+	CXXFLAGS= -g -O3 -qopenmp -std=c++11 # -qopt-report=5
     CXXFLAGS+=-fma #Fused multiply and add
 #    CXXFLAGS+=-I /usr/common/software/likwid/4.3.0/include/ -DLIKWID_PERFMON
 #    CXXFLAGS+=-I /usr/common/software/likwid/4.3.0/include/ -DUSE_VTUNE -I${VTUNE_AMPLIFIER_XE_2018_DIR}/include -DLIKWID_PERFMON
@@ -22,37 +22,37 @@ ifeq ($(CXX),icc)
 
 #Cray compiler flag
 #	CXXFLAGS= -hlist=a
-endif 
+endif
 
 ifeq ($(CXX),CC)
 #Cray compiler flag
 	CXXFLAGS= -hlist=a
 #	CXXFLAGS+= -fopenmp
-endif 
+endif
 
 ifeq ($(CXX),g++)
-	CXXFLAGS= -g -O3 -std=c++11 -fopenmp 
+	CXXFLAGS= -g -O3 -std=c++11 -fopenmp
 	LINKFLAGS=-fopenmp
-endif 
+endif
 
 ifeq ($(CXX),xlc++_r)
 	CXXFLAGS=-O3 -std=gnu++11 -g -qsmp
 	LINKFLAGS=-qsmp
-endif 
+endif
 
 ifeq ($(CXX),clang++)
 	CXXFLAGS=-O3 -std=gnu++11 -fopenmp -fopenmp-targets=nvptx64-nvidia-cuda --cuda-path=${CUDA_HOME}
 	LINKFLAGS=-fopenmp -fopenmp-targets=nvptx64-nvidia-cuda --cuda-path=${CUDA_HOME}
-endif 
+endif
 
 OBJ = $(SRC:.cpp=.o)
 
-$(EXE): $(OBJ)  
+$(EXE): $(OBJ)
 	$(CXX) $(OBJ) -o $(EXE) $(LINKFLAGS)
 
-$(OBJ1): $(SRC) 
+$(OBJ1): $(SRC)
 	$(CXX) -c $(SRC) $(CXXFLAGS)
 
-clean: 
+clean:
 	rm -f $(OBJ) $(EXE)
 
