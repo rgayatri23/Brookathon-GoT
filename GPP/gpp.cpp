@@ -1,8 +1,85 @@
 #include "../ComplexClass/CustomComplex.h"
 
-using namespace std;
 #define nstart 0
 #define nend 3
+
+inline void short_correntess(CustomComplex<double> result)
+{
+    double re_diff = result.get_real() - -63015.384615;
+    double im_diff = result.get_imag() - 315076.923077;
+
+    if(re_diff < 0.00001 && im_diff < 0.00001)
+        printf("\n!!!! SUCCESS - !!!! Test Correctness test passed :-D :-D\n\n");
+    else
+        printf("\n!!!! FAILURE - Correctness test failed :-( :-(  \n");
+}
+
+inline void correntess(CustomComplex<double> result)
+{
+    double re_diff = result.get_real() - -264241151.997370;
+    double im_diff = result.get_imag() - 1321205760.015211;
+
+    if(re_diff < 0.00001 && im_diff < 0.00001)
+        printf("\n!!!! SUCCESS - !!!! Correctness test passed :-D :-D\n\n");
+    else
+        printf("\n!!!! FAILURE - Correctness test failed :-( :-(  \n");
+}
+
+#if defined(OPENACC)
+void init_structs(size_t number_bands, size_t ngpown, size_t ncouls, CustomComplex<double> *aqsmtemp, CustomComplex<double> *aqsntemp, CustomComplex<double> *I_eps_array, \
+        CustomComplex<double> *wtilde_array, double *vcoul, int *inv_igp_index, int *indinv, double *achtemp_re, double *achtemp_im, double *wx_array)
+{
+    const double dw = 1;
+    const double e_lk = 10;
+    const double to1 = 1e-6;
+    const double limittwo = pow(0.5,2);
+    const double e_n1kq= 6.0;
+    CustomComplex<double> expr0(0.00, 0.00);
+    CustomComplex<double> expr(0.5, 0.5);
+
+#pragma acc enter data create (aqsmtemp[0:number_bands*ncouls], aqsntemp[0:number_bands*ncouls], I_eps_array[0:ngpown*ncouls], vcoul[0:ncouls], inv_igp_index[0:ngpown], \
+        indinv[0:ncouls+1], achtemp_re[nstart:nend], achtemp_im[nstart:nend], wtilde_array[0:ngpown*ncouls], wx_array[nstart:nend])
+
+#pragma acc parallel loop copyin(expr) present(aqsmtemp, aqsntemp)
+   for(int i=0; i<number_bands; i++)
+       for(int j=0; j<ncouls; j++)
+       {
+           aqsmtemp[i*ncouls+j] = expr;
+           aqsntemp[i*ncouls+j] = expr;
+       }
+
+#pragma acc parallel loop copyin(expr) present(I_eps_array, wtilde_array)
+   for(int i=0; i<ngpown; i++)
+       for(int j=0; j<ncouls; j++)
+       {
+           I_eps_array[i*ncouls+j] = expr;
+           wtilde_array[i*ncouls+j] = expr;
+       }
+
+#pragma acc parallel loop present(vcoul)
+   for(int i=0; i<ncouls; i++)
+       vcoul[i] = 1.0;
+
+
+#pragma acc parallel loop present(inv_igp_index)
+    for(int ig=0; ig < ngpown; ++ig)
+        inv_igp_index[ig] = (ig+1) * ncouls / ngpown;
+
+#pragma acc parallel loop present(indinv)
+    for(int ig=0; ig<ncouls; ++ig)
+        indinv[ig] = ig;
+        indinv[ncouls] = ncouls-1;
+
+#pragma acc parallel loop present(achtemp_re, achtemp_im, wx_array[nstart:nend])
+       for(int iw=nstart; iw<nend; ++iw)
+       {
+           achtemp_re[iw] = 0.00;
+           achtemp_im[iw] = 0.00;
+           wx_array[iw] = e_lk - e_n1kq + dw*((iw+1)-2);
+           if(wx_array[iw] < to1) wx_array[iw] = to1;
+       }
+}
+#endif
 
 inline void reduce_achstemp(int n1, int number_bands, int* inv_igp_index, int ncouls, CustomComplex<double>  *aqsmtemp, CustomComplex<double> *aqsntemp, CustomComplex<double> *I_eps_array, CustomComplex<double> achstemp,  int* indinv, int ngpown, double* vcoul, int numThreads)
 {
@@ -30,7 +107,7 @@ inline void reduce_achstemp(int n1, int number_bands, int* inv_igp_index, int nc
             if(CustomComplex_abs(schs) > to1)
                 schstemp += matngmatmgp * schs;
             }
-            else 
+            else
             {
                 for(int ig=1; ig<ncouls; ++ig)
                 {
@@ -67,15 +144,15 @@ inline void flagOCC_solver(double wxt, CustomComplex<double> *wtilde_array, int 
         double limitone = 1.0/(to1*4.0);
         double limittwo = pow(0.5,2);
         CustomComplex<double> sch(0.00, 0.00), ssx(0.00, 0.00);
-    
+
         CustomComplex<double> wdiff = wxt - wtilde;
-    
+
         CustomComplex<double> cden = wdiff;
         double rden = 1/CustomComplex_real(cden * CustomComplex_conj(cden));
         CustomComplex<double> delw = wtilde * CustomComplex_conj(cden) * rden;
         double delwr = CustomComplex_real(delw * CustomComplex_conj(delw));
         double wdiffr = CustomComplex_real(wdiff * CustomComplex_conj(wdiff));
-    
+
         if((wdiffr > limittwo) && (delwr < limitone))
         {
             sch = delw * I_eps_array[my_igp*ngpown+ig];
@@ -97,7 +174,7 @@ inline void flagOCC_solver(double wxt, CustomComplex<double> *wtilde_array, int 
             sch = expr0;
             ssx = expr0;
         }
-    
+
         ssxcutoff = CustomComplex_abs(I_eps_array[my_igp*ngpown+ig]) * sexcut;
         if((CustomComplex_abs(ssx) > ssxcutoff) && (wxt < 0.00)) ssx = expr0;
 
@@ -128,45 +205,96 @@ void till_nvband(int number_bands, int nvband, int ngpown, int ncouls, CustomCom
     }
 }
 
-void noflagOCC_solver(int number_bands, int ngpown, int ncouls, int *inv_igp_index, int *indinv, double *wx_array, CustomComplex<double> *wtilde_array, CustomComplex<double> *aqsmtemp, CustomComplex<double> *aqsntemp, CustomComplex<double> *I_eps_array, double *vcoul, double *achtemp_re, double *achtemp_im)
+void noflagOCC_solver(int number_bands, int ngpown, int ncouls, int *inv_igp_index, int *indinv, double *wx_array, CustomComplex<double> *wtilde_array, CustomComplex<double> *aqsmtemp, CustomComplex<double> *aqsntemp, CustomComplex<double> *I_eps_array, double *vcoul, double *achtemp_re, double *achtemp_im, double &elapsedKernelTimer)
 {
-#pragma omp parallel for  default(shared) firstprivate(ngpown, ncouls, number_bands) reduction(+:achtemp_re[nstart:nend], achtemp_im[nstart:nend])
-    for(int n1 = 0; n1<number_bands; ++n1) 
+    timeval startKernelTimer, endKernelTimer;
+    //Vars to use for reduction
+    double ach_re0 = 0.00, ach_re1 = 0.00, ach_re2 = 0.00, \
+        ach_im0 = 0.00, ach_im1 = 0.00, ach_im2 = 0.00;
+    gettimeofday(&startKernelTimer, NULL);
+
+#if defined(OPENMP_TARGET)
+#pragma omp target enter data map(alloc:aqsmtemp[0:number_bands*ncouls], vcoul[0:ncouls], inv_igp_index[0:ngpown], indinv[0:ncouls+1], \
+    aqsntemp[0:number_bands*ncouls], I_eps_array[0:ngpown*ncouls], wx_array[nstart:nend], wtilde_array[0:ngpown*ncouls])
+#pragma omp target update to(aqsmtemp[0:number_bands*ncouls], vcoul[0:ncouls], inv_igp_index[0:ngpown], indinv[0:ncouls+1], \
+    aqsntemp[0:number_bands*ncouls], I_eps_array[0:ngpown*ncouls], wx_array[nstart:nend], wtilde_array[0:ngpown*ncouls])
+
+    gettimeofday(&startKernelTimer, NULL);
+#pragma omp target \
+    map(to:aqsmtemp[0:number_bands*ncouls], vcoul[0:ncouls], inv_igp_index[0:ngpown], indinv[0:ncouls+1], \
+    aqsntemp[0:number_bands*ncouls], I_eps_array[0:ngpown*ncouls], wx_array[nstart:nend], wtilde_array[0:ngpown*ncouls])\
+    map(tofrom:ach_re0, ach_re1, ach_re2, ach_im0, ach_im1, ach_im2)
+
+#pragma omp teams distribute parallel for collapse(2) \
+    reduction(+:ach_re0, ach_re1, ach_re2, ach_im0, ach_im1, ach_im2)
+
+#elif defined(_OPENMP)
+#pragma omp parallel for\
+    reduction(+:ach_re0, ach_re1, ach_re2, ach_im0, ach_im1, ach_im2)
+#elif defined(OPENACC)
+#pragma acc parallel loop gang vector collapse(2) \
+    present(inv_igp_index[:ngpown], indinv[:ncouls+1], wtilde_array[:ngpown*ncouls], wx_array[:nend], aqsmtemp[:number_bands*ncouls],  aqsntemp[:number_bands*ncouls], I_eps_array[:ngpown*ncouls], vcoul[:ncouls])\
+    reduction(+:ach_re0, ach_re1, ach_re2, ach_im0, ach_im1, ach_im2)\
+    num_gangs(number_bands*ngpown)
+//#pragma acc kernels\
+//    present(inv_igp_index, indinv, wtilde_array, wx_array, aqsmtemp,  aqsntemp, I_eps_array, vcoul)
+#endif
+    for(int my_igp=0; my_igp<ngpown; ++my_igp)
     {
-        for(int my_igp=0; my_igp<ngpown; ++my_igp)
+        for(int n1 = 0; n1<number_bands; ++n1)
         {
             int indigp = inv_igp_index[my_igp];
             int igp = indinv[indigp];
-
-            CustomComplex<double> wdiff(0.00, 0.00), delw(0.00, 0.00);
+            CustomComplex<double> sch_store1 = CustomComplex_conj(aqsmtemp[n1*ncouls+igp])*  aqsntemp[n1*ncouls+igp] * 0.5*vcoul[igp];
 
             double achtemp_re_loc[nend-nstart], achtemp_im_loc[nend-nstart];
             for(int iw = nstart; iw < nend; ++iw) {achtemp_re_loc[iw] = 0.00; achtemp_im_loc[iw] = 0.00;}
+            CustomComplex<double> delw(0.0, 0.0), wdiff(0.0, 0.0), sch_array(0.0, 0.0);
 
+#if defined(OPENACC)
+#pragma acc loop seq
+#endif
             for(int ig = 0; ig<ncouls; ++ig)
             {
+#if defined(OPENACC)
+#pragma acc loop seq
+#endif
                 for(int iw = nstart; iw < nend; ++iw)
                 {
-                    wdiff = wx_array[iw] - wtilde_array[my_igp*ncouls+ig]; //2 flops
+                    wdiff = wx_array[iw] - wtilde_array[my_igp*ncouls+ig];
+                    delw = wtilde_array[my_igp*ncouls + ig]* CustomComplex_conj(wdiff) * (1/CustomComplex_real((wdiff * CustomComplex_conj(wdiff))));
+                    sch_array = delw  * I_eps_array[my_igp*ncouls +ig] * sch_store1;
 
-                    //2 conj + 2 * product + 1 mult + 1 divide = 17
-                    delw = wtilde_array[my_igp*ncouls+ig] * CustomComplex_conj(wdiff) * (1/CustomComplex_real((wdiff * CustomComplex_conj(wdiff)))); 
-
-                    //1 conj + 3 product + 1 mult + 1 real-mult = 22
-                    CustomComplex<double> sch_array = CustomComplex_conj(aqsmtemp[n1*ncouls+igp]) * aqsntemp[n1*ncouls+ig] * delw * I_eps_array[my_igp*ncouls+ig] * 0.5*vcoul[igp];
-
-                    //2 flops
                     achtemp_re_loc[iw] += CustomComplex_real(sch_array);
                     achtemp_im_loc[iw] += CustomComplex_imag(sch_array);
                 }
             }
-            for(int iw = nstart; iw < nend; ++iw)
-            {
-                achtemp_re[iw] += achtemp_re_loc[iw];
-                achtemp_im[iw] += achtemp_im_loc[iw];
-            }
+            ach_re0 += achtemp_re_loc[0];
+            ach_re1 += achtemp_re_loc[1];
+            ach_re2 += achtemp_re_loc[2];
+            ach_im0 += achtemp_im_loc[0];
+            ach_im1 += achtemp_im_loc[1];
+            ach_im2 += achtemp_im_loc[2];
         } //ngpown
     } //number_bands
+
+    gettimeofday(&endKernelTimer, NULL);
+    elapsedKernelTimer = (endKernelTimer.tv_sec - startKernelTimer.tv_sec) +1e-6*(endKernelTimer.tv_usec - startKernelTimer.tv_usec);
+
+#if defined(OPENMP_TARGET)
+#pragma omp target exit data map(delete: aqsmtemp[0:number_bands*ncouls], vcoul[0:ncouls], inv_igp_index[0:ngpown], indinv[0:ncouls+1], \
+    aqsntemp[0:number_bands*ncouls], I_eps_array[0:ngpown*ncouls], wx_array[nstart:nend], wtilde_array[0:ngpown*ncouls])
+#elif defined(OPENACC)
+#pragma acc exit data delete (aqsmtemp[0:number_bands*ncouls], aqsntemp[0:number_bands*ncouls], I_eps_array[0:ngpown*ncouls], vcoul[0:ncouls], inv_igp_index[0:ngpown], \
+        indinv[0:ncouls+1], achtemp_re[nstart:nend], achtemp_im[nstart:nend], wtilde_array[0:ngpown*ncouls], wx_array[nstart:nend])
+#endif
+
+    achtemp_re[0] = ach_re0;
+    achtemp_re[1] = ach_re1;
+    achtemp_re[2] = ach_re2;
+    achtemp_im[0] = ach_im0;
+    achtemp_im[1] = ach_im1;
+    achtemp_im[2] = ach_im2;
 }
 
 int main(int argc, char** argv)
@@ -179,13 +307,21 @@ int main(int argc, char** argv)
         exit (0);
     }
 
+#if defined(OPENMP_TARGET)
+    cout << "\n ************OpenMP 4.5**********\n" << endl;
+#elif defined(_OPENMP)
+    cout << "\n ************OpenMP 3.0**********\n" << endl;
+#elif defined(OPENACC)
+    cout << "\n ************OpenACC  **********\n" << endl;
+#endif
+
 //Input parameters stored in these variables.
     const int number_bands = atoi(argv[1]);
     const int nvband = atoi(argv[2]);
     const int ncouls = atoi(argv[3]);
     const int nodes_per_group = atoi(argv[4]);
-    const int npes = 1; 
-    const int ngpown = ncouls / (nodes_per_group * npes); 
+    const int npes = 1;
+    const int ngpown = ncouls / (nodes_per_group * npes);
 
 //Constants that will be used later
     const double e_lk = 10;
@@ -195,12 +331,19 @@ int main(int argc, char** argv)
     const double sexcut = 4.0;
     const double limitone = 1.0/(to1*4.0);
     const double limittwo = pow(0.5,2);
-    const double e_n1kq= 6.0; 
+    const double e_n1kq= 6.0;
     const double occ=1.0;
+
+    //Start the timer before the work begins.
+    double elapsedKernelTimer, elapsedTimer;
+    timeval startTimer, endTimer;
+    gettimeofday(&startTimer, NULL);
 
 
     //OpenMP Printing of threads on Host and Device
     int tid, numThreads, numTeams;
+
+#if defined(_OPENMP)
 #pragma omp parallel shared(numThreads) private(tid)
     {
         tid = omp_get_thread_num();
@@ -208,6 +351,27 @@ int main(int argc, char** argv)
             numThreads = omp_get_num_threads();
     }
     std::cout << "Number of OpenMP Threads = " << numThreads << endl;
+#endif
+
+#if defined(OPENMP_TARGET)
+#pragma omp target map(tofrom: numTeams, numThreads)
+#pragma omp teams shared(numTeams) private(tid)
+    {
+        tid = omp_get_team_num();
+        if(tid == 0)
+        {
+            numTeams = omp_get_num_teams();
+#pragma omp parallel
+            {
+                int ttid = omp_get_thread_num();
+                if(ttid == 0)
+                    numThreads = omp_get_num_threads();
+            }
+        }
+    }
+    std::cout << "Number of OpenMP Teams = " << numTeams << std::endl;
+    std::cout << "Number of OpenMP DEVICE Threads = " << numThreads << std::endl;
+#endif
 
     //Printing out the params passed.
     std::cout << "Sizeof(CustomComplex<double> = " << sizeof(CustomComplex<double>) << " bytes" << std::endl;
@@ -218,7 +382,7 @@ int main(int argc, char** argv)
         << "\t ngpown = " << ngpown \
         << "\t nend = " << nend \
         << "\t nstart = " << nstart << endl;
-   
+
     CustomComplex<double> expr0(0.00, 0.00);
     CustomComplex<double> expr(0.5, 0.5);
     long double memFootPrint = 0.00;
@@ -257,8 +421,8 @@ int main(int argc, char** argv)
 
     double wx_array[nend-nstart];
     CustomComplex<double> achstemp;
-                        
-    //Print Memory Foot print 
+
+    //Print Memory Foot print
     cout << "Memory Foot Print = " << memFootPrint / pow(1024,3) << " GBs" << endl;
 
 
@@ -301,39 +465,40 @@ int main(int argc, char** argv)
             if(wx_array[iw] < to1) wx_array[iw] = to1;
         }
 
-    //Start the timer before the work begins.
-    timeval startTimer, endTimer;
-    gettimeofday(&startTimer, NULL);
-
+    //Initailize OpenACC structures
+#if defined(OPENACC)
+    init_structs(number_bands, ngpown, ncouls, aqsmtemp, aqsntemp, I_eps_array, wtilde_array, vcoul, inv_igp_index, indinv, achtemp_re, achtemp_im, wx_array);
+#endif
     //0-nvband iterations
     till_nvband(number_bands, nvband, ngpown, ncouls, asxtemp, wx_array, wtilde_array, aqsmtemp, aqsntemp, I_eps_array, inv_igp_index, indinv, vcoul);
 
     //reduction on achstemp
-#pragma omp parallel for 
-    for(int n1 = 0; n1<number_bands; ++n1) 
+#pragma omp parallel for
+    for(int n1 = 0; n1<number_bands; ++n1)
         reduce_achstemp(n1, number_bands, inv_igp_index, ncouls,aqsmtemp, aqsntemp, I_eps_array, achstemp, indinv, ngpown, vcoul, numThreads);
 
-    //main-loop with output on achtemp divide among achtemp_re && achtemp_im
-    noflagOCC_solver(number_bands, ngpown, ncouls, inv_igp_index, indinv, wx_array, wtilde_array, aqsmtemp, aqsntemp, I_eps_array, vcoul, achtemp_re, achtemp_im);
+    noflagOCC_solver(number_bands, ngpown, ncouls, inv_igp_index, indinv, wx_array, wtilde_array, aqsmtemp, aqsntemp, I_eps_array, vcoul, achtemp_re, achtemp_im, elapsedKernelTimer);
 
-    //Time Taken
     gettimeofday(&endTimer, NULL);
-    double elapsedTimer = (endTimer.tv_sec - startTimer.tv_sec) +1e-6*(endTimer.tv_usec - startTimer.tv_usec);
-
-    printf(" \n Final achstemp\n");
-    achstemp.print();
-
-    printf("\n Final achtemp\n");
+    elapsedTimer = (endTimer.tv_sec - startTimer.tv_sec) +1e-6*(endTimer.tv_usec - startTimer.tv_usec);
 
     for(int iw=nstart; iw<nend; ++iw)
     {
         CustomComplex<double> tmp(achtemp_re[iw], achtemp_im[iw]);
         achtemp[iw] = tmp;
-//        achtemp[iw].print();
     }
-        achtemp[0].print();
 
-    cout << "********** Kernel Time Taken **********= " << elapsedTimer << " secs" << endl;
+
+    //Check for correctness
+    if(ncouls == 32768)
+        correntess(achtemp[0]);
+    else
+        short_correntess(achtemp[0]);
+//    printf("\n Final achtemp\n");
+//        achtemp[0].print();
+
+    cout << "********** Kernel Time Taken **********= " << elapsedKernelTimer << " secs" << endl;
+    cout << "********** Total Time Taken **********= " << elapsedTimer << " secs" << endl;
 
     free(acht_n1_loc);
     free(achtemp);
