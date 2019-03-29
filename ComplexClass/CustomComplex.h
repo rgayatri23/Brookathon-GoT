@@ -16,7 +16,7 @@ template<class type>
 
 class CustomComplex {
 
-    private : 
+    private :
     type x;
     type y;
 
@@ -96,7 +96,7 @@ class CustomComplex {
         this->x = val;
     }
 
-    void set_imag(double val) 
+    void set_imag(double val)
     {
         this->y = val;
     }
@@ -176,7 +176,7 @@ class CustomComplex {
 };
 
 /*
- * Return the conjugate of a complex number 
+ * Return the conjugate of a complex number
  1flop
  */
 template<class T>
@@ -191,7 +191,7 @@ inline CustomComplex<T> CustomComplex_conj(const CustomComplex<T>& src) {
 }
 
 /*
- * Return the absolute of a complex number 
+ * Return the absolute of a complex number
  */
 template<class T>
 inline double CustomComplex_abs(const CustomComplex<T>& src) {
@@ -203,7 +203,7 @@ inline double CustomComplex_abs(const CustomComplex<T>& src) {
 }
 
 /*
- * Return the real part of a complex number 
+ * Return the real part of a complex number
  */
 template<class T>
 inline double CustomComplex_real( const CustomComplex<T>& src) {
@@ -211,7 +211,7 @@ inline double CustomComplex_real( const CustomComplex<T>& src) {
 }
 
 /*
- * Return the imaginary part of a complex number 
+ * Return the imaginary part of a complex number
  */
 template<class T>
 inline double CustomComplex_imag( const CustomComplex<T>& src) {

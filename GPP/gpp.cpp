@@ -25,62 +25,6 @@ inline void correntess(CustomComplex<double> result)
         printf("\n!!!! FAILURE - Correctness test failed :-( :-(  \n");
 }
 
-#if defined(OPENACC)
-void init_structs(size_t number_bands, size_t ngpown, size_t ncouls, CustomComplex<double> *aqsmtemp, CustomComplex<double> *aqsntemp, CustomComplex<double> *I_eps_array, \
-        CustomComplex<double> *wtilde_array, double *vcoul, int *inv_igp_index, int *indinv, double *achtemp_re, double *achtemp_im, double *wx_array)
-{
-    const double dw = 1;
-    const double e_lk = 10;
-    const double to1 = 1e-6;
-    const double limittwo = pow(0.5,2);
-    const double e_n1kq= 6.0;
-    CustomComplex<double> expr0(0.00, 0.00);
-    CustomComplex<double> expr(0.5, 0.5);
-
-#pragma acc enter data create (aqsmtemp[0:number_bands*ncouls], aqsntemp[0:number_bands*ncouls], I_eps_array[0:ngpown*ncouls], vcoul[0:ncouls], inv_igp_index[0:ngpown], \
-        indinv[0:ncouls+1], achtemp_re[nstart:nend], achtemp_im[nstart:nend], wtilde_array[0:ngpown*ncouls], wx_array[nstart:nend])
-
-#pragma acc parallel loop copyin(expr) present(aqsmtemp, aqsntemp)
-   for(int i=0; i<number_bands; i++)
-       for(int j=0; j<ncouls; j++)
-       {
-           aqsmtemp[i*ncouls+j] = expr;
-           aqsntemp[i*ncouls+j] = expr;
-       }
-
-#pragma acc parallel loop copyin(expr) present(I_eps_array, wtilde_array)
-   for(int i=0; i<ngpown; i++)
-       for(int j=0; j<ncouls; j++)
-       {
-           I_eps_array[i*ncouls+j] = expr;
-           wtilde_array[i*ncouls+j] = expr;
-       }
-
-#pragma acc parallel loop present(vcoul)
-   for(int i=0; i<ncouls; i++)
-       vcoul[i] = 1.0;
-
-
-#pragma acc parallel loop present(inv_igp_index)
-    for(int ig=0; ig < ngpown; ++ig)
-        inv_igp_index[ig] = (ig+1) * ncouls / ngpown;
-
-#pragma acc parallel loop present(indinv)
-    for(int ig=0; ig<ncouls; ++ig)
-        indinv[ig] = ig;
-        indinv[ncouls] = ncouls-1;
-
-#pragma acc parallel loop present(achtemp_re, achtemp_im, wx_array[nstart:nend])
-       for(int iw=nstart; iw<nend; ++iw)
-       {
-           achtemp_re[iw] = 0.00;
-           achtemp_im[iw] = 0.00;
-           wx_array[iw] = e_lk - e_n1kq + dw*((iw+1)-2);
-           if(wx_array[iw] < to1) wx_array[iw] = to1;
-       }
-}
-#endif
-
 inline void reduce_achstemp(int n1, int number_bands, int* inv_igp_index, int ncouls, CustomComplex<double>  *aqsmtemp, CustomComplex<double> *aqsntemp, CustomComplex<double> *I_eps_array, CustomComplex<double> achstemp,  int* indinv, int ngpown, double* vcoul, int numThreads)
 {
     double to1 = 1e-6;
@@ -213,31 +157,9 @@ void noflagOCC_solver(int number_bands, int ngpown, int ncouls, int *inv_igp_ind
         ach_im0 = 0.00, ach_im1 = 0.00, ach_im2 = 0.00;
     gettimeofday(&startKernelTimer, NULL);
 
-#if defined(OPENMP_TARGET)
-#pragma omp target enter data map(alloc:aqsmtemp[0:number_bands*ncouls], vcoul[0:ncouls], inv_igp_index[0:ngpown], indinv[0:ncouls+1], \
-    aqsntemp[0:number_bands*ncouls], I_eps_array[0:ngpown*ncouls], wx_array[nstart:nend], wtilde_array[0:ngpown*ncouls])
-#pragma omp target update to(aqsmtemp[0:number_bands*ncouls], vcoul[0:ncouls], inv_igp_index[0:ngpown], indinv[0:ncouls+1], \
-    aqsntemp[0:number_bands*ncouls], I_eps_array[0:ngpown*ncouls], wx_array[nstart:nend], wtilde_array[0:ngpown*ncouls])
-
-    gettimeofday(&startKernelTimer, NULL);
-#pragma omp target \
-    map(to:aqsmtemp[0:number_bands*ncouls], vcoul[0:ncouls], inv_igp_index[0:ngpown], indinv[0:ncouls+1], \
-    aqsntemp[0:number_bands*ncouls], I_eps_array[0:ngpown*ncouls], wx_array[nstart:nend], wtilde_array[0:ngpown*ncouls])\
-    map(tofrom:ach_re0, ach_re1, ach_re2, ach_im0, ach_im1, ach_im2)
-
-#pragma omp teams distribute parallel for collapse(2) \
-    reduction(+:ach_re0, ach_re1, ach_re2, ach_im0, ach_im1, ach_im2)
-
-#elif defined(_OPENMP)
+#if defined(_OPENMP)
 #pragma omp parallel for\
     reduction(+:ach_re0, ach_re1, ach_re2, ach_im0, ach_im1, ach_im2)
-#elif defined(OPENACC)
-#pragma acc parallel loop gang vector collapse(2) \
-    present(inv_igp_index[:ngpown], indinv[:ncouls+1], wtilde_array[:ngpown*ncouls], wx_array[:nend], aqsmtemp[:number_bands*ncouls],  aqsntemp[:number_bands*ncouls], I_eps_array[:ngpown*ncouls], vcoul[:ncouls])\
-    reduction(+:ach_re0, ach_re1, ach_re2, ach_im0, ach_im1, ach_im2)\
-    num_gangs(number_bands*ngpown)
-//#pragma acc kernels\
-//    present(inv_igp_index, indinv, wtilde_array, wx_array, aqsmtemp,  aqsntemp, I_eps_array, vcoul)
 #endif
     for(int my_igp=0; my_igp<ngpown; ++my_igp)
     {
@@ -249,26 +171,24 @@ void noflagOCC_solver(int number_bands, int ngpown, int ncouls, int *inv_igp_ind
 
             double achtemp_re_loc[nend-nstart], achtemp_im_loc[nend-nstart];
             for(int iw = nstart; iw < nend; ++iw) {achtemp_re_loc[iw] = 0.00; achtemp_im_loc[iw] = 0.00;}
-            CustomComplex<double> delw(0.0, 0.0), wdiff(0.0, 0.0), sch_array(0.0, 0.0);
+//            CustomComplex<double> delw(0.0, 0.0), wdiff(0.0, 0.0), sch_array(0.0, 0.0);
 
-#if defined(OPENACC)
-#pragma acc loop seq
-#endif
+
+            [&](){
+
             for(int ig = 0; ig<ncouls; ++ig)
             {
-#if defined(OPENACC)
-#pragma acc loop seq
-#endif
                 for(int iw = nstart; iw < nend; ++iw)
                 {
-                    wdiff = wx_array[iw] - wtilde_array[my_igp*ncouls+ig];
-                    delw = wtilde_array[my_igp*ncouls + ig]* CustomComplex_conj(wdiff) * (1/CustomComplex_real((wdiff * CustomComplex_conj(wdiff))));
-                    sch_array = delw  * I_eps_array[my_igp*ncouls +ig] * sch_store1;
+                    CustomComplex<double> wdiff = wx_array[iw] - wtilde_array[my_igp*ncouls+ig];
+                    CustomComplex<double> delw = wtilde_array[my_igp*ncouls + ig]* CustomComplex_conj(wdiff) * (1/CustomComplex_real((wdiff * CustomComplex_conj(wdiff))));
+                    CustomComplex<double> sch_array = delw  * I_eps_array[my_igp*ncouls +ig] * sch_store1;
 
                     achtemp_re_loc[iw] += CustomComplex_real(sch_array);
                     achtemp_im_loc[iw] += CustomComplex_imag(sch_array);
                 }
             }
+            };
             ach_re0 += achtemp_re_loc[0];
             ach_re1 += achtemp_re_loc[1];
             ach_re2 += achtemp_re_loc[2];
@@ -280,14 +200,6 @@ void noflagOCC_solver(int number_bands, int ngpown, int ncouls, int *inv_igp_ind
 
     gettimeofday(&endKernelTimer, NULL);
     elapsedKernelTimer = (endKernelTimer.tv_sec - startKernelTimer.tv_sec) +1e-6*(endKernelTimer.tv_usec - startKernelTimer.tv_usec);
-
-#if defined(OPENMP_TARGET)
-#pragma omp target exit data map(delete: aqsmtemp[0:number_bands*ncouls], vcoul[0:ncouls], inv_igp_index[0:ngpown], indinv[0:ncouls+1], \
-    aqsntemp[0:number_bands*ncouls], I_eps_array[0:ngpown*ncouls], wx_array[nstart:nend], wtilde_array[0:ngpown*ncouls])
-#elif defined(OPENACC)
-#pragma acc exit data delete (aqsmtemp[0:number_bands*ncouls], aqsntemp[0:number_bands*ncouls], I_eps_array[0:ngpown*ncouls], vcoul[0:ncouls], inv_igp_index[0:ngpown], \
-        indinv[0:ncouls+1], achtemp_re[nstart:nend], achtemp_im[nstart:nend], wtilde_array[0:ngpown*ncouls], wx_array[nstart:nend])
-#endif
 
     achtemp_re[0] = ach_re0;
     achtemp_re[1] = ach_re1;
@@ -307,12 +219,8 @@ int main(int argc, char** argv)
         exit (0);
     }
 
-#if defined(OPENMP_TARGET)
-    cout << "\n ************OpenMP 4.5**********\n" << endl;
-#elif defined(_OPENMP)
+#if defined(_OPENMP)
     cout << "\n ************OpenMP 3.0**********\n" << endl;
-#elif defined(OPENACC)
-    cout << "\n ************OpenACC  **********\n" << endl;
 #endif
 
 //Input parameters stored in these variables.
@@ -466,9 +374,6 @@ int main(int argc, char** argv)
         }
 
     //Initailize OpenACC structures
-#if defined(OPENACC)
-    init_structs(number_bands, ngpown, ncouls, aqsmtemp, aqsntemp, I_eps_array, wtilde_array, vcoul, inv_igp_index, indinv, achtemp_re, achtemp_im, wx_array);
-#endif
     //0-nvband iterations
     till_nvband(number_bands, nvband, ngpown, ncouls, asxtemp, wx_array, wtilde_array, aqsmtemp, aqsntemp, I_eps_array, inv_igp_index, indinv, vcoul);
 
@@ -495,7 +400,7 @@ int main(int argc, char** argv)
     else
         short_correntess(achtemp[0]);
 //    printf("\n Final achtemp\n");
-//        achtemp[0].print();
+        achtemp[0].print();
 
     cout << "********** Kernel Time Taken **********= " << elapsedKernelTimer << " secs" << endl;
     cout << "********** Total Time Taken **********= " << elapsedTimer << " secs" << endl;

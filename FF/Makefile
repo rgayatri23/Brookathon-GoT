@@ -9,10 +9,11 @@ LINK = ${CXX}
 
 ifeq ($(CXX),icc)
 ##Intel compiler flag
-	CXXFLAGS= -g -O3 -qopenmp -qopt-report=5 -std=c++11
+	CXXFLAGS= -g -O3 -qopenmp -qopt-report=5
+	CXXFLAGS+= -std=c++11
     CXXFLAGS+=-fma #Fused multiply and add
-    #CXXFLAGS+=-xCORE-AVX2
-    CXXFLAGS+=-xMIC-AVX512
+    CXXFLAGS+=-xCORE-AVX2
+    #CXXFLAGS+=-xMIC-AVX512
     CXXFLAGS+=-vec-threshold0 #Always vectorize, intel flag instead of vec-always directive
     LINKFLAGS=-qopenmp #-dynamic
 endif
